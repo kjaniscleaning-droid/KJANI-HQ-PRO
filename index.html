@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title id="page-title">Elite Service | Executive Radar v145</title>
+    <title id="page-title">Elite HQ v148.2 | Diamond Edition</title>
     
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
@@ -39,46 +39,45 @@
             {n: 'Autohäuser', q: 'Autohaus', i: '🚗'}
         ];
 
-        // --- DATA SCANNER LOGIK PRO v145 (Kjanis "Sauger") ⚡ ---
+        // --- DATA SCANNER LOGIK PRO v148.2 (Kjanis "Sauger") ⚡ ---
         window.extractEliteData = () => {
             const rawText = document.getElementById('scanner-in').value;
             if(!rawText) return;
 
+            // 1. Email finden
             const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-            const emailField = document.getElementById('lead-email');
             if(emailMatch) {
-                emailField.value = emailMatch[0];
-                emailField.parentElement.classList.add('border-gold');
+                const field = document.getElementById('lead-email');
+                field.value = emailMatch[0];
+                field.classList.add('light-on');
             }
 
+            // 2. Telefon finden
             const phoneMatch = rawText.match(/(\+49|0)[0-9\s\-/()]{7,20}/);
-            const phoneField = document.getElementById('lead-phone');
             if(phoneMatch) {
-                phoneField.value = phoneMatch[0].trim();
-                phoneField.parentElement.classList.add('border-gold');
+                const field = document.getElementById('lead-phone');
+                field.value = phoneMatch[0].trim();
+                field.classList.add('light-on');
             }
 
-            const lines = rawText.split('\n')
-                .map(l => l.trim())
-                .filter(l => l.length > 3 
-                    && !l.includes('@') 
-                    && !l.includes('Rezensionen') 
-                    && !l.match(/^\d,\d/)
-                    && !l.includes('Geöffnet')
-                    && !l.includes('Geschlossen')
-                );
-
-            const nameField = document.getElementById('lead-name');
+            // 3. Firmenname finden (Er nimmt die erste Zeile, die keine E-Mail ist)
+            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 2);
             if(lines.length > 0) {
-                nameField.value = lines[0];
-                nameField.parentElement.classList.add('border-gold');
+                // Falls die erste Zeile die E-Mail war, nimm die zweite (falls vorhanden)
+                const name = (lines[0].includes('@') && lines.length > 1) ? lines[1] : lines[0];
+                const field = document.getElementById('lead-name');
+                field.value = name;
+                field.classList.add('light-on');
             }
 
             confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ['#d4af37', '#ffffff'] });
+            
+            // Textfeld leeren
             document.getElementById('scanner-in').value = ""; 
             
-            setTimeout(() => {
-                document.querySelectorAll('.input-wrapper').forEach(w => w.classList.remove('border-gold'));
+            // Licht-Effekt nach 2 Sek entfernen
+            setTimeout(() => { 
+                document.querySelectorAll('.light-on').forEach(el => el.classList.remove('light-on')); 
             }, 2000);
         };
 
@@ -90,17 +89,15 @@
                     await updateDoc(leadRef, { [f]: v });
                     if(f === 'status' && v === 'Gewonnen') confetti({ particleCount: 150, spread: 70, colors: ['#d4af37', '#ffffff'] });
                     window.calculateRevenue();
-                } catch (e) { console.error("Update Error:", e); }
+                } catch (e) { console.error(e); }
             }
         };
 
         window.calculateRevenue = () => {
             const leads = window.rawLeads || [];
             const monat = leads.filter(l => l.status === 'Gewonnen').reduce((sum, l) => sum + (parseFloat(l.monatsWert) || 0), 0);
-            const annEl = document.getElementById('annual-revenue');
-            const wonEl = document.getElementById('won-revenue');
-            if(annEl) annEl.innerText = (monat * 12).toLocaleString('de-DE') + " €";
-            if(wonEl) wonEl.innerText = monat.toLocaleString('de-DE') + " €";
+            document.getElementById('annual-revenue').innerText = (monat * 12).toLocaleString('de-DE') + " €";
+            document.getElementById('won-revenue').innerText = monat.toLocaleString('de-DE') + " €";
         };
 
         window.renderLeadsUI = () => {
@@ -111,12 +108,11 @@
                 const last = x.lastContact || x.timestamp || now;
                 const overdue = (now - last) / (1000*60*60*24) >= 3 && x.status !== 'Gewonnen';
                 return `
-                <div class="glass-card p-4 mb-3 cursor-pointer hover:border-gold transition-all flex items-center gap-4 shadow-xl group" 
-                     onclick="window.loadLead('${x.id}')">
+                <div class="glass p-4 mb-3 cursor-pointer hover:light-on transition-all flex items-center gap-4 shadow-xl group" onclick="window.loadLead('${x.id}')">
                     <div class="w-2 h-2 rounded-full ${x.status === 'Gewonnen' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-white/10'}"></div>
                     <div class="flex-grow overflow-hidden">
                         <p class="font-bold text-xs uppercase tracking-wider text-white truncate">${x.name || 'Unbekannt'}</p>
-                        <p class="text-gold text-[9px] font-black">${parseFloat(x.monatsWert || 0).toLocaleString()} € / Mo</p>
+                        <p class="text-gold text-[9px] font-black italic">${parseFloat(x.monatsWert || 0).toLocaleString()} € / Mo</p>
                     </div>
                     ${overdue ? '<div class="text-[7px] text-orange-500 font-black animate-pulse uppercase italic">Handeln</div>' : ''}
                 </div>`;
@@ -140,12 +136,10 @@
             const s = window.eliteSettings;
             let subject = "Lösung: 80% Zeitersparnis bei Ihrer Gebäudereinigung";
             let body = `Sehr geehrte Damen und Herren,\n\nwie viel Zeit verliert Ihr Team monatlich mit der Organisation der Reinigung?\n\nMit Elite Service reduzieren Sie diesen Aufwand um bis zu 80%.\n\nInfos unter: ${s.websiteUrl}\n\nBeste Grüße aus Hannover,\n${s.ownerName}`;
-            
             if(stufe === 'herzlich') {
                 subject = "Termin-Bestätigung / Elite Service";
                 body = `Vielen Dank für das Gespräch.\n\nWie besprochen biete ich Ihnen absolute Zuverlässigkeit ohne Verwaltungsaufwand an.\n\nBeste Grüße,\n${s.ownerName}`;
             }
-
             window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         };
 
@@ -154,13 +148,11 @@
             if(!n || !window.kj_uid) return;
             try {
                 await addDoc(collection(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads'), { 
-                    name: n, 
-                    email: document.getElementById('lead-email').value, 
-                    phone: document.getElementById('lead-phone').value,
+                    name: n, email: document.getElementById('lead-email').value, phone: document.getElementById('lead-phone').value,
                     monatsWert: 0, status: 'Neu', timestamp: Date.now()
                 });
                 ['lead-name', 'lead-email', 'lead-phone'].forEach(id => document.getElementById(id).value = "");
-            } catch (e) { console.error("Add Error:", e); }
+            } catch (e) { console.error(e); }
         };
 
         window.deleteLead = async () => {
@@ -168,55 +160,28 @@
                 try {
                     await deleteDoc(doc(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads', window.currentLeadId));
                     document.getElementById('lead-details').classList.add('hidden');
-                } catch (e) { console.error("Delete Error:", e); }
+                } catch (e) { console.error(e); }
             }
         };
 
         window.radarSearch = (k) => window.open(`https://www.google.com/search?q=${encodeURIComponent(k + " in " + window.eliteSettings.location)}`, '_blank');
-        
-        window.checkPass = () => { 
-            if(document.getElementById('pass').value === ELITE_PASS) { 
-                document.getElementById('lock').style.display='none'; 
-                document.getElementById('hq').style.display='block'; 
-                window.renderLeadsUI(); 
-            } else { alert("CODE FALSCH"); } 
-        };
-
-        window.updateUI = () => {
-            const container = document.getElementById('jagd-buttons-container');
-            if(container) container.innerHTML = jagdCategories.map(c => `
-                <button onclick="window.radarSearch('${c.q}')" class="jagd-btn flex flex-col items-center gap-2 group ${c.hot ? 'border-gold/50 bg-gold/5' : ''}">
-                    <span class="text-xl group-hover:scale-125 transition-transform">${c.i}</span>
-                    <span class="text-[8px] tracking-tighter uppercase font-bold text-center">${c.n}</span>
-                    ${c.hot ? '<span class="text-[6px] text-gold animate-pulse font-black mt-1">DRINGEND</span>' : ''}
-                </button>`).join('');
-        };
+        window.checkPass = () => { if(document.getElementById('pass').value === ELITE_PASS) { document.getElementById('lock').style.display='none'; document.getElementById('hq').style.display='block'; window.renderLeadsUI(); } else { alert("CODE FALSCH"); } };
+        window.toggleLight = () => { document.querySelectorAll('.glass').forEach(el => el.classList.toggle('light-on')); };
 
         const initSystem = async () => {
-            const hideLoader = () => {
-                const loader = document.getElementById('loading-overlay');
-                if(loader) loader.style.display='none';
-            };
-
-            // Notfall-Timeout: Loader verschwindet nach 2.5 Sek IMMER
+            const hideLoader = () => { const loader = document.getElementById('loading-overlay'); if(loader) loader.style.display='none'; };
             setTimeout(hideLoader, 2500);
-
             try {
-                window.updateUI();
+                const container = document.getElementById('jagd-buttons-container');
+                if(container) container.innerHTML = jagdCategories.map(c => `<button onclick="window.radarSearch('${c.q}')" class="jagd-btn flex flex-col items-center gap-2 group ${c.hot ? 'border-gold/50 bg-gold/5' : ''}"><span class="text-xl group-hover:scale-125 transition-transform">${c.i}</span><span class="text-[8px] tracking-tighter uppercase font-bold text-center">${c.n}</span>${c.hot ? '<span class="text-[6px] text-gold animate-pulse font-black mt-1">DRINGEND</span>' : ''}</button>`).join('');
+                
                 let config = null;
                 if (typeof __firebase_config !== 'undefined' && __firebase_config) config = JSON.parse(__firebase_config);
-                
                 if (config) {
                     const app = initializeApp(config);
                     const auth = getAuth(app);
                     window.kj_db = getFirestore(app);
-                    
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth); }
                     onAuthStateChanged(auth, async (user) => {
                         if (user) {
                             window.kj_uid = user.uid;
@@ -227,15 +192,9 @@
                         }
                     });
                 }
-            } catch (e) { console.error("Init Error:", e); }
-            
-            // Regelmäßiger Clock Tick
-            setInterval(() => {
-                const el = document.getElementById('elite-clock');
-                if(el) el.innerText = new Date().toLocaleTimeString('de-DE');
-            }, 1000);
+            } catch (e) { console.error(e); }
+            setInterval(() => { const el = document.getElementById('elite-clock'); if(el) el.innerText = new Date().toLocaleTimeString('de-DE'); }, 1000);
         };
-
         window.addEventListener('DOMContentLoaded', initSystem);
     </script>
 
@@ -243,34 +202,51 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
         :root { --gold: #d4af37; --obsidian: #0a0c10; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--obsidian); color: #fff; transition: 0.4s; overflow-x: hidden; }
-        .glass-card { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border: 1px solid rgba(212, 175, 55, 0.1); border-radius: 24px; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--obsidian); color: #fff; overflow-x: hidden; }
+
+        /* DIAMOND INPUT SYSTEM - v148.2 Optimierung */
+        input, textarea, select {
+            background-color: #15171c !important;
+            color: #d4af37 !important; /* Goldene Schrift für beste Lesbarkeit */
+            border: 2px solid rgba(212, 175, 55, 0.2) !important;
+            border-radius: 12px !important;
+            padding: 15px !important;
+            font-size: 16px !important; /* iPad Zoom-Stop */
+            display: block !important;
+            width: 100% !important;
+            margin-bottom: 12px !important;
+            outline: none !important;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            background-color: #1a1c22 !important;
+            border-color: #d4af37 !important;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+
+        .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border: 1px solid rgba(212, 175, 55, 0.1); border-radius: 24px; padding: 24px; }
+        .light-on { border-color: #d4af37 !important; box-shadow: 0 0 30px rgba(212, 175, 55, 0.3) !important; background: rgba(212, 175, 55, 0.05) !important; }
+        
         .gold-gradient { background: linear-gradient(135deg, #d4af37 0%, #f9e29b 50%, #b8860b 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .gold-btn { background: linear-gradient(135deg, #d4af37, #b8860b); color: #000; font-weight: 800; border-radius: 16px; }
-        .input-wrapper { @apply bg-white/[0.03] border border-white/[0.05] rounded-xl flex items-center px-4 transition-all; }
-        input, select, textarea { @apply bg-transparent border-none py-3 text-xs text-white outline-none w-full; }
+        .gold-bg { background: linear-gradient(135deg, #d4af37, #b8860b); color: #000; font-weight: 800; border-radius: 16px; padding: 15px; cursor: pointer; transition: all 0.3s ease; }
+        .jagd-btn { @apply p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-gold transition-all text-white/40 hover:text-gold w-full relative; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 10px; }
-        body.light-mode { background-color: #f3f4f6; color: #111; }
-        body.light-mode .glass-card { background: #fff !important; border-color: #ddd !important; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body class="p-4 md:p-10">
 
-    <!-- LOADING OVERLAY MIT FIX -->
     <div id="loading-overlay" class="fixed inset-0 z-[6000] bg-[#0a0c10] flex items-center justify-center">
-        <div class="text-center">
-            <div class="w-12 h-12 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p class="gold-gradient font-black text-[10px] tracking-widest uppercase">Sentinel Pro v145</p>
-        </div>
+        <div class="text-center"><div class="w-12 h-12 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p class="gold-gradient font-black text-[10px] tracking-widest uppercase italic tracking-tighter">Diamond Pro v148.2 | Elite Executive</p></div>
     </div>
 
     <!-- LOCK SCREEN -->
     <div id="lock" class="fixed inset-0 z-[5000] bg-black flex items-center justify-center p-6 text-center">
-        <div class="glass-card p-12 w-full max-w-sm border-gold/20 shadow-2xl">
+        <div class="glass p-12 w-full max-w-sm border-gold/20 shadow-2xl">
             <h2 class="text-xl font-black gold-gradient mb-8 uppercase italic">Commander Login</h2>
-            <input type="password" id="pass" placeholder="CODE" class="text-center text-3xl mb-8 tracking-[0.5em] !bg-white/5 !border !border-white/10 !rounded-2xl">
-            <button onclick="window.checkPass()" class="gold-btn w-full py-5 shadow-2xl">ZUGRIFF</button>
+            <input type="password" id="pass" placeholder="CODE" class="text-center text-3xl mb-8 tracking-[0.5em] !bg-white/5 !border-white/10">
+            <button onclick="window.checkPass()" class="gold-bg w-full shadow-2xl uppercase tracking-widest">ZUGRIFF</button>
         </div>
     </div>
 
@@ -278,85 +254,85 @@
     <div id="hq" style="display:none;" class="max-w-7xl mx-auto">
         <header class="flex flex-col md:flex-row justify-between items-center gap-8 mb-12">
             <div class="flex items-center gap-6">
-                <div class="w-16 h-16 glass-card flex items-center justify-center text-3xl shadow-2xl border-gold/30">🦅</div>
+                <div class="w-16 h-16 glass flex items-center justify-center text-3xl shadow-2xl border-gold/30">🦅</div>
                 <div>
                     <h1 class="text-3xl font-black gold-gradient italic uppercase leading-none">Elite HQ</h1>
-                    <p class="text-[8px] uppercase text-white/30 tracking-widest font-bold">Sentinel Protocol Active</p>
+                    <p class="text-[8px] uppercase text-white/30 tracking-widest font-bold">Diamond Edition v148.2</p>
                 </div>
             </div>
-            <div class="glass-card px-8 py-3 text-center border-gold/10">
+            <div class="glass px-8 py-3 text-center border-gold/10">
                 <p id="elite-clock" class="text-2xl font-black gold-gradient tracking-widest">00:00:00</p>
             </div>
-            <button onclick="location.reload()" class="glass-card px-6 py-3 text-[10px] font-black uppercase italic hover:text-gold transition-colors">System Reboot</button>
+            <button onclick="window.toggleLight()" class="glass px-6 py-3 text-[10px] font-black uppercase italic hover:text-gold transition-all tracking-widest">💡 HQ Beleuchtung</button>
         </header>
 
         <div class="grid lg:grid-cols-12 gap-8">
-            <!-- RADAR & SCANNER -->
+            <!-- LEFT -->
             <div class="lg:col-span-4 space-y-6">
-                <div class="glass-card p-6 border-gold/30">
+                <div class="glass border-gold/30">
                     <h3 class="text-[10px] font-black gold-gradient uppercase mb-4 italic tracking-widest">Elite Data-Scanner ⚡</h3>
-                    <textarea id="scanner-in" class="h-24 mb-4 !bg-white/5 !border !border-white/10 !p-3" placeholder="Kopierten Google-Text hier einfügen..."></textarea>
-                    <button onclick="window.extractEliteData()" class="gold-btn w-full py-3 text-[10px] uppercase shadow-lg">Daten Saugen</button>
+                    <textarea id="scanner-in" class="h-24" placeholder="Google-Text hier einfügen..."></textarea>
+                    <button onclick="window.extractEliteData()" class="gold-bg w-full text-[10px] uppercase shadow-lg tracking-widest">Daten Saugen</button>
                 </div>
 
-                <div class="glass-card p-6">
-                    <h3 class="text-[10px] font-black text-white/40 uppercase mb-4 italic">Schnellerfassung</h3>
-                    <div class="space-y-3">
-                        <div class="input-wrapper"><input type="text" id="lead-name" placeholder="Firma / Name"></div>
-                        <div class="input-wrapper"><input type="email" id="lead-email" placeholder="Email (Zentral)"></div>
-                        <div class="input-wrapper"><input type="text" id="lead-phone" placeholder="Telefon (Direkt)"></div>
-                        <button onclick="window.addNewLead()" class="w-full py-3 border border-gold/20 rounded-xl text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all">+ Lead sichern</button>
+                <div class="glass">
+                    <h3 class="text-[10px] font-black text-white/40 uppercase mb-4 italic tracking-widest">Schnellerfassung</h3>
+                    <div class="space-y-1">
+                        <input type="text" id="lead-name" placeholder="Firma / Name">
+                        <input type="email" id="lead-email" placeholder="Email (Zentral)">
+                        <input type="text" id="lead-phone" placeholder="Telefon (Direkt)">
+                        <button onclick="window.addNewLead()" class="w-full border border-gold/20 rounded-xl text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all tracking-widest p-4">+ Lead sichern</button>
                     </div>
                 </div>
 
-                <div class="glass-card p-6 h-[350px] flex flex-col">
-                    <h3 class="text-[10px] font-black gold-gradient uppercase mb-4 italic">Branchen Radar</h3>
+                <div class="glass h-[380px] flex flex-col">
+                    <h3 class="text-[10px] font-black gold-gradient uppercase mb-4 italic tracking-widest text-center">Branchen Radar</h3>
                     <div class="grid grid-cols-4 gap-2 overflow-y-auto pr-2 custom-scroll" id="jagd-buttons-container"></div>
                 </div>
             </div>
 
-            <!-- DASHBOARD & PIPELINE -->
+            <!-- RIGHT -->
             <div class="lg:col-span-8 space-y-6">
                 <div class="grid grid-cols-2 gap-6">
-                    <div class="glass-card p-10 border-gold/20 text-center">
-                        <p class="text-[8px] font-black text-white/20 uppercase mb-2">Umsatz Prognose / Jahr</p>
+                    <div class="glass p-10 border-gold/20 text-center">
+                        <p class="text-[8px] font-black text-white/20 uppercase mb-2 italic tracking-widest">Umsatz Prognose / Jahr</p>
                         <div id="annual-revenue" class="text-6xl font-black italic gold-gradient tracking-tighter">0 €</div>
                     </div>
-                    <div class="glass-card p-10 border-white/5 text-center">
-                        <p class="text-[8px] font-black text-white/20 uppercase mb-2">Monatswert Gewonnen</p>
+                    <div class="glass p-10 border-white/5 text-center">
+                        <p class="text-[8px] font-black text-white/20 uppercase mb-2 italic tracking-widest">Monatswert Gewonnen</p>
                         <div id="won-revenue" class="text-6xl font-black italic text-white tracking-tighter">0 €</div>
                     </div>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-6">
-                    <div class="glass-card p-6 h-[650px] flex flex-col">
+                    <div class="glass h-[750px] flex flex-col">
                         <h3 class="text-[10px] font-black gold-gradient uppercase mb-6 italic tracking-widest">Pipeline</h3>
                         <div id="leadsList" class="flex-grow overflow-y-auto custom-scroll pr-2"></div>
                     </div>
 
-                    <div id="lead-details" class="hidden glass-card p-8 border-gold/10 relative min-h-[650px] shadow-2xl">
+                    <div id="lead-details" class="hidden glass relative min-h-[750px] shadow-2xl">
                         <div id="lead-name-display" class="text-4xl font-black gold-gradient italic uppercase mb-10 tracking-tighter leading-none"></div>
                         
                         <div class="space-y-6 mb-10">
-                            <label class="text-[9px] font-black uppercase text-white/20 ml-2">Missions-Ziel (E-Mail)</label>
-                            <div class="input-wrapper !bg-white/5"><input type="email" id="cust-mail" class="!text-lg font-bold"></div>
+                            <label class="text-[9px] font-black uppercase text-white/20 ml-2 italic tracking-widest">Missions-Ziel (E-Mail)</label>
+                            <input type="email" id="cust-mail" class="!text-lg font-bold">
                             <div class="grid grid-cols-2 gap-4">
-                                <button onclick="window.sendMission('vorstellung')" class="py-4 rounded-xl border border-gold/20 text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all">Vorstellung 🚀</button>
-                                <button onclick="window.sendMission('herzlich')" class="py-4 rounded-xl border border-gold/20 text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all">Bestätigung 👋</button>
+                                <button onclick="window.sendMission('vorstellung')" class="py-5 rounded-xl border border-gold/20 text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all tracking-widest italic">Vorstellung 🚀</button>
+                                <button onclick="window.sendMission('herzlich')" class="py-5 rounded-xl border border-gold/20 text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all tracking-widest italic">Bestätigung 👋</button>
                             </div>
                         </div>
 
                         <div class="pt-8 border-t border-white/5 space-y-6">
                             <h3 class="text-[10px] font-black text-gold uppercase italic tracking-[0.2em]">Kommando-Status</h3>
-                            <select onchange="window.updateLeadData('status', this.value)" id="leadStatusSelect" class="!bg-white/5 !border !border-white/10 !rounded-xl !p-4 font-bold text-xs uppercase tracking-widest">
+                            <select onchange="window.updateLeadData('status', this.value)" id="leadStatusSelect" class="font-bold text-xs uppercase tracking-widest cursor-pointer !p-4">
                                 <option value="Neu">Neu erfasst</option>
                                 <option value="Kontaktiert">Erstkontakt</option>
                                 <option value="Termin">Vor-Ort Termin</option>
                                 <option value="Gewonnen">ABSCHLUSS 🏆</option>
                             </select>
                             <div class="space-y-2">
-                                <label class="text-[9px] font-black uppercase text-white/20 ml-2">Monatswert (€)</label>
-                                <div class="input-wrapper !bg-white/5"><input type="number" id="lead-value-input" onchange="window.updateLeadData('monatsWert', this.value)" class="font-bold text-xl !text-gold"></div>
+                                <label class="text-[9px] font-black uppercase text-white/20 ml-2 italic tracking-widest">Monatswert (€)</label>
+                                <input type="number" id="lead-value-input" onchange="window.updateLeadData('monatsWert', this.value)" class="font-bold text-2xl !text-gold !p-4">
                             </div>
                         </div>
 
@@ -366,3 +342,5 @@
             </div>
         </div>
     </div>
+</body>
+</html>
