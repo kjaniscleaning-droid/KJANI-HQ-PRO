@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title id="page-title">Elite Service | Executive Radar v144</title>
+    <title id="page-title">Elite Service | Executive Radar v145</title>
     
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
@@ -13,7 +13,7 @@
         import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- KJANI CORE CONFIG ---
-        const appId = 'kjani-elite-hannover';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'kjani-elite-hannover';
         window.kj_appId = appId;
         const ELITE_PASS = "Kjani13675@"; 
 
@@ -39,34 +39,31 @@
             {n: 'Autohäuser', q: 'Autohaus', i: '🚗'}
         ];
 
-        // --- DATA SCANNER LOGIK PRO v144 ⚡ ---
+        // --- DATA SCANNER LOGIK PRO v145 (Kjanis "Sauger") ⚡ ---
         window.extractEliteData = () => {
             const rawText = document.getElementById('scanner-in').value;
             if(!rawText) return;
 
-            // Email-Erkennung
             const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
             const emailField = document.getElementById('lead-email');
             if(emailMatch) {
                 emailField.value = emailMatch[0];
-                emailField.style.borderColor = 'var(--gold)';
+                emailField.parentElement.classList.add('border-gold');
             }
 
-            // Telefon-Erkennung (DE-Format optimiert)
             const phoneMatch = rawText.match(/(\+49|0)[0-9\s\-/()]{7,20}/);
             const phoneField = document.getElementById('lead-phone');
             if(phoneMatch) {
                 phoneField.value = phoneMatch[0].trim();
-                phoneField.style.borderColor = 'var(--gold)';
+                phoneField.parentElement.classList.add('border-gold');
             }
 
-            // Firmenname-Erkennung (Filtert typischen Google-Maps Müll)
             const lines = rawText.split('\n')
                 .map(l => l.trim())
                 .filter(l => l.length > 3 
                     && !l.includes('@') 
                     && !l.includes('Rezensionen') 
-                    && !l.match(/^\d,\d/) // Filtert Sternebewertungen wie "4,5"
+                    && !l.match(/^\d,\d/)
                     && !l.includes('Geöffnet')
                     && !l.includes('Geschlossen')
                 );
@@ -74,33 +71,36 @@
             const nameField = document.getElementById('lead-name');
             if(lines.length > 0) {
                 nameField.value = lines[0];
-                nameField.style.borderColor = 'var(--gold)';
+                nameField.parentElement.classList.add('border-gold');
             }
 
             confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ['#d4af37', '#ffffff'] });
             document.getElementById('scanner-in').value = ""; 
             
-            // Felder nach 2 Sekunden wieder normal färben
             setTimeout(() => {
-                [nameField, emailField, phoneField].forEach(f => f.style.borderColor = 'rgba(255,255,255,0.05)');
+                document.querySelectorAll('.input-wrapper').forEach(w => w.classList.remove('border-gold'));
             }, 2000);
         };
 
-        // --- CRM & MISSIONS ---
+        // --- CRM CORE ---
         window.updateLeadData = async (f, v) => {
             if(window.kj_db && window.currentLeadId && window.kj_uid) {
-                const leadRef = window.kj_fs.doc(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads', window.currentLeadId);
-                await window.kj_fs.updateDoc(leadRef, { [f]: v });
-                if(f === 'status' && v === 'Gewonnen') confetti({ particleCount: 150, spread: 70, colors: ['#d4af37', '#ffffff'] });
-                window.calculateRevenue();
+                try {
+                    const leadRef = doc(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads', window.currentLeadId);
+                    await updateDoc(leadRef, { [f]: v });
+                    if(f === 'status' && v === 'Gewonnen') confetti({ particleCount: 150, spread: 70, colors: ['#d4af37', '#ffffff'] });
+                    window.calculateRevenue();
+                } catch (e) { console.error("Update Error:", e); }
             }
         };
 
         window.calculateRevenue = () => {
             const leads = window.rawLeads || [];
             const monat = leads.filter(l => l.status === 'Gewonnen').reduce((sum, l) => sum + (parseFloat(l.monatsWert) || 0), 0);
-            document.getElementById('annual-revenue').innerText = (monat * 12).toLocaleString('de-DE') + " €";
-            document.getElementById('won-revenue').innerText = monat.toLocaleString('de-DE') + " €";
+            const annEl = document.getElementById('annual-revenue');
+            const wonEl = document.getElementById('won-revenue');
+            if(annEl) annEl.innerText = (monat * 12).toLocaleString('de-DE') + " €";
+            if(wonEl) wonEl.innerText = monat.toLocaleString('de-DE') + " €";
         };
 
         window.renderLeadsUI = () => {
@@ -111,8 +111,8 @@
                 const last = x.lastContact || x.timestamp || now;
                 const overdue = (now - last) / (1000*60*60*24) >= 3 && x.status !== 'Gewonnen';
                 return `
-                <div class="glass-card p-4 mb-3 cursor-pointer hover:border-gold transition-all flex items-center gap-4 sticky shadow-xl group" 
-                     style="top:${index * 8}px; z-index:${index};" onclick="window.loadLead('${x.id}')">
+                <div class="glass-card p-4 mb-3 cursor-pointer hover:border-gold transition-all flex items-center gap-4 shadow-xl group" 
+                     onclick="window.loadLead('${x.id}')">
                     <div class="w-2 h-2 rounded-full ${x.status === 'Gewonnen' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-white/10'}"></div>
                     <div class="flex-grow overflow-hidden">
                         <p class="font-bold text-xs uppercase tracking-wider text-white truncate">${x.name || 'Unbekannt'}</p>
@@ -129,6 +129,8 @@
             document.getElementById('cust-mail').value = x.email || "";
             document.getElementById('lead-name-display').innerText = x.name;
             document.getElementById('lead-details').classList.remove('hidden');
+            document.getElementById('lead-value-input').value = x.monatsWert || 0;
+            document.getElementById('leadStatusSelect').value = x.status || "Neu";
             window.currentLeadId = id;
         };
 
@@ -150,57 +152,34 @@
         window.addNewLead = async () => {
             const n = document.getElementById('lead-name').value;
             if(!n || !window.kj_uid) return;
-            await window.kj_fs.addDoc(window.kj_fs.collection(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads'), { 
-                name: n, 
-                email: document.getElementById('lead-email').value, 
-                phone: document.getElementById('lead-phone').value,
-                monatsWert: 0, status: 'Neu', timestamp: Date.now()
-            });
-            ['lead-name', 'lead-email', 'lead-phone'].forEach(id => document.getElementById(id).value = "");
+            try {
+                await addDoc(collection(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads'), { 
+                    name: n, 
+                    email: document.getElementById('lead-email').value, 
+                    phone: document.getElementById('lead-phone').value,
+                    monatsWert: 0, status: 'Neu', timestamp: Date.now()
+                });
+                ['lead-name', 'lead-email', 'lead-phone'].forEach(id => document.getElementById(id).value = "");
+            } catch (e) { console.error("Add Error:", e); }
         };
 
         window.deleteLead = async () => {
             if(confirm("Endgültig löschen?")) {
-                await window.kj_fs.deleteDoc(window.kj_fs.doc(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads', window.currentLeadId));
-                document.getElementById('lead-details').classList.add('hidden');
+                try {
+                    await deleteDoc(doc(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads', window.currentLeadId));
+                    document.getElementById('lead-details').classList.add('hidden');
+                } catch (e) { console.error("Delete Error:", e); }
             }
-        }
-
-        // --- SYSTEM CORE ---
-        window.startEliteClock = () => {
-            setInterval(() => {
-                const now = new Date();
-                document.getElementById('elite-clock').innerText = now.toLocaleTimeString('de-DE');
-            }, 1000);
         };
 
         window.radarSearch = (k) => window.open(`https://www.google.com/search?q=${encodeURIComponent(k + " in " + window.eliteSettings.location)}`, '_blank');
-        window.checkPass = () => { if(document.getElementById('pass').value === ELITE_PASS) { document.getElementById('lock').style.display='none'; document.getElementById('hq').style.display='block'; window.renderLeadsUI(); } else { alert("CODE FALSCH"); } };
-
-        const initSystem = async () => {
-            window.startEliteClock();
-            try {
-                let config = null;
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) config = JSON.parse(__firebase_config);
-                if (!config) return;
-                const app = initializeApp(config);
-                const auth = getAuth(app);
-                const db = getFirestore(app);
-                window.kj_db = db; window.kj_fs = { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, setDoc };
-                
-                await signInAnonymously(auth);
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        window.kj_uid = user.uid;
-                        window.updateUI();
-                        window.kj_fs.onSnapshot(window.kj_fs.collection(db, 'artifacts', window.kj_appId, 'users', user.uid, 'leads'), (snap) => {
-                            window.manualLeads = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                            window.renderLeadsUI();
-                        });
-                    }
-                });
-            } catch (e) { console.error(e); }
-            setTimeout(() => { document.getElementById('loading-overlay').style.display='none'; }, 1000);
+        
+        window.checkPass = () => { 
+            if(document.getElementById('pass').value === ELITE_PASS) { 
+                document.getElementById('lock').style.display='none'; 
+                document.getElementById('hq').style.display='block'; 
+                window.renderLeadsUI(); 
+            } else { alert("CODE FALSCH"); } 
         };
 
         window.updateUI = () => {
@@ -211,6 +190,50 @@
                     <span class="text-[8px] tracking-tighter uppercase font-bold text-center">${c.n}</span>
                     ${c.hot ? '<span class="text-[6px] text-gold animate-pulse font-black mt-1">DRINGEND</span>' : ''}
                 </button>`).join('');
+        };
+
+        const initSystem = async () => {
+            const hideLoader = () => {
+                const loader = document.getElementById('loading-overlay');
+                if(loader) loader.style.display='none';
+            };
+
+            // Notfall-Timeout: Loader verschwindet nach 2.5 Sek IMMER
+            setTimeout(hideLoader, 2500);
+
+            try {
+                window.updateUI();
+                let config = null;
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) config = JSON.parse(__firebase_config);
+                
+                if (config) {
+                    const app = initializeApp(config);
+                    const auth = getAuth(app);
+                    window.kj_db = getFirestore(app);
+                    
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            window.kj_uid = user.uid;
+                            onSnapshot(collection(window.kj_db, 'artifacts', window.kj_appId, 'users', user.uid, 'leads'), (snap) => {
+                                window.manualLeads = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                                window.renderLeadsUI();
+                            });
+                        }
+                    });
+                }
+            } catch (e) { console.error("Init Error:", e); }
+            
+            // Regelmäßiger Clock Tick
+            setInterval(() => {
+                const el = document.getElementById('elite-clock');
+                if(el) el.innerText = new Date().toLocaleTimeString('de-DE');
+            }, 1000);
         };
 
         window.addEventListener('DOMContentLoaded', initSystem);
@@ -224,118 +247,125 @@
         .glass-card { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border: 1px solid rgba(212, 175, 55, 0.1); border-radius: 24px; }
         .gold-gradient { background: linear-gradient(135deg, #d4af37 0%, #f9e29b 50%, #b8860b 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .gold-btn { background: linear-gradient(135deg, #d4af37, #b8860b); color: #000; font-weight: 800; border-radius: 16px; }
-        input, textarea, select { background: rgba(255,255,255,0.03) !important; border: 1px solid rgba(255,255,255,0.05) !important; border-radius: 12px !important; padding: 10px !important; color: #fff !important; outline: none; width: 100%; font-size: 12px; transition: border 0.3s; }
+        .input-wrapper { @apply bg-white/[0.03] border border-white/[0.05] rounded-xl flex items-center px-4 transition-all; }
+        input, select, textarea { @apply bg-transparent border-none py-3 text-xs text-white outline-none w-full; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 10px; }
+        body.light-mode { background-color: #f3f4f6; color: #111; }
+        body.light-mode .glass-card { background: #fff !important; border-color: #ddd !important; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body class="p-4 md:p-10">
 
+    <!-- LOADING OVERLAY MIT FIX -->
     <div id="loading-overlay" class="fixed inset-0 z-[6000] bg-[#0a0c10] flex items-center justify-center">
-        <div class="text-center"><div class="w-12 h-12 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p class="gold-gradient font-black text-[10px] tracking-widest uppercase">Executive Pro v144</p></div>
+        <div class="text-center">
+            <div class="w-12 h-12 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="gold-gradient font-black text-[10px] tracking-widest uppercase">Sentinel Pro v145</p>
+        </div>
     </div>
 
     <!-- LOCK SCREEN -->
     <div id="lock" class="fixed inset-0 z-[5000] bg-black flex items-center justify-center p-6 text-center">
         <div class="glass-card p-12 w-full max-w-sm border-gold/20 shadow-2xl">
             <h2 class="text-xl font-black gold-gradient mb-8 uppercase italic">Commander Login</h2>
-            <input type="password" id="pass" placeholder="CODE" class="text-center text-3xl mb-8 tracking-[0.5em]">
+            <input type="password" id="pass" placeholder="CODE" class="text-center text-3xl mb-8 tracking-[0.5em] !bg-white/5 !border !border-white/10 !rounded-2xl">
             <button onclick="window.checkPass()" class="gold-btn w-full py-5 shadow-2xl">ZUGRIFF</button>
         </div>
     </div>
 
-    <div id="hq" style="display:none;" class="max-w-6xl mx-auto">
-        <header class="flex justify-between items-center mb-12">
+    <!-- MAIN HQ -->
+    <div id="hq" style="display:none;" class="max-w-7xl mx-auto">
+        <header class="flex flex-col md:flex-row justify-between items-center gap-8 mb-12">
             <div class="flex items-center gap-6">
                 <div class="w-16 h-16 glass-card flex items-center justify-center text-3xl shadow-2xl border-gold/30">🦅</div>
-                <div><h1 class="text-3xl font-black gold-gradient italic uppercase leading-none">Elite HQ</h1><p class="text-[8px] uppercase text-white/30 tracking-widest font-bold tracking-tighter">Diamond Executive v144</p></div>
+                <div>
+                    <h1 class="text-3xl font-black gold-gradient italic uppercase leading-none">Elite HQ</h1>
+                    <p class="text-[8px] uppercase text-white/30 tracking-widest font-bold">Sentinel Protocol Active</p>
+                </div>
             </div>
             <div class="glass-card px-8 py-3 text-center border-gold/10">
                 <p id="elite-clock" class="text-2xl font-black gold-gradient tracking-widest">00:00:00</p>
             </div>
-            <button onclick="location.reload()" class="glass-card px-6 py-3 text-[10px] font-black uppercase italic hover:text-gold transition-colors">Reload</button>
+            <button onclick="location.reload()" class="glass-card px-6 py-3 text-[10px] font-black uppercase italic hover:text-gold transition-colors">System Reboot</button>
         </header>
 
         <div class="grid lg:grid-cols-12 gap-8">
-            <!-- LEFT: SCANNER & INPUT -->
+            <!-- RADAR & SCANNER -->
             <div class="lg:col-span-4 space-y-6">
                 <div class="glass-card p-6 border-gold/30">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-[10px] font-black gold-gradient uppercase italic tracking-widest">Elite Data-Scanner ⚡</h3>
-                        <span class="text-[8px] text-white/20 uppercase font-bold">Pro-Mode Active</span>
-                    </div>
-                    <textarea id="scanner-in" class="h-24 mb-4" placeholder="Kopierten Google-Text hier einwerfen..."></textarea>
+                    <h3 class="text-[10px] font-black gold-gradient uppercase mb-4 italic tracking-widest">Elite Data-Scanner ⚡</h3>
+                    <textarea id="scanner-in" class="h-24 mb-4 !bg-white/5 !border !border-white/10 !p-3" placeholder="Kopierten Google-Text hier einfügen..."></textarea>
                     <button onclick="window.extractEliteData()" class="gold-btn w-full py-3 text-[10px] uppercase shadow-lg">Daten Saugen</button>
                 </div>
 
                 <div class="glass-card p-6">
-                    <h3 class="text-[10px] font-black text-white/40 uppercase mb-4 italic">Lead-Check</h3>
+                    <h3 class="text-[10px] font-black text-white/40 uppercase mb-4 italic">Schnellerfassung</h3>
                     <div class="space-y-3">
-                        <input type="text" id="lead-name" placeholder="Firma / Name">
-                        <input type="email" id="lead-email" placeholder="Email (Zentral)">
-                        <input type="text" id="lead-phone" placeholder="Telefon (Direkt)">
-                        <button onclick="window.addNewLead()" class="w-full py-3 border border-gold/20 rounded-xl text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all">+ In Pipeline sichern</button>
+                        <div class="input-wrapper"><input type="text" id="lead-name" placeholder="Firma / Name"></div>
+                        <div class="input-wrapper"><input type="email" id="lead-email" placeholder="Email (Zentral)"></div>
+                        <div class="input-wrapper"><input type="text" id="lead-phone" placeholder="Telefon (Direkt)"></div>
+                        <button onclick="window.addNewLead()" class="w-full py-3 border border-gold/20 rounded-xl text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all">+ Lead sichern</button>
                     </div>
                 </div>
 
-                <div class="glass-card p-6 h-[320px] flex flex-col">
-                    <h3 class="text-[10px] font-black gold-gradient uppercase mb-4 italic">Gurgel Radar</h3>
+                <div class="glass-card p-6 h-[350px] flex flex-col">
+                    <h3 class="text-[10px] font-black gold-gradient uppercase mb-4 italic">Branchen Radar</h3>
                     <div class="grid grid-cols-4 gap-2 overflow-y-auto pr-2 custom-scroll" id="jagd-buttons-container"></div>
                 </div>
             </div>
 
-            <!-- RIGHT: DASHBOARD & PIPELINE -->
+            <!-- DASHBOARD & PIPELINE -->
             <div class="lg:col-span-8 space-y-6">
                 <div class="grid grid-cols-2 gap-6">
-                    <div class="glass-card p-8 border-gold/20 text-center">
-                        <p class="text-[8px] font-black text-white/20 uppercase mb-2 italic">Jahres-Projektion</p>
-                        <div id="annual-revenue" class="text-5xl font-black italic gold-gradient tracking-tighter">0 €</div>
+                    <div class="glass-card p-10 border-gold/20 text-center">
+                        <p class="text-[8px] font-black text-white/20 uppercase mb-2">Umsatz Prognose / Jahr</p>
+                        <div id="annual-revenue" class="text-6xl font-black italic gold-gradient tracking-tighter">0 €</div>
                     </div>
-                    <div class="glass-card p-8 border-white/5 text-center">
-                        <p class="text-[8px] font-black text-white/20 uppercase mb-2 italic">Aktueller Monats-Flow</p>
-                        <div id="won-revenue" class="text-5xl font-black italic text-white tracking-tighter">0 €</div>
+                    <div class="glass-card p-10 border-white/5 text-center">
+                        <p class="text-[8px] font-black text-white/20 uppercase mb-2">Monatswert Gewonnen</p>
+                        <div id="won-revenue" class="text-6xl font-black italic text-white tracking-tighter">0 €</div>
                     </div>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-6">
-                    <!-- PIPELINE LIST -->
                     <div class="glass-card p-6 h-[650px] flex flex-col">
-                        <h3 class="text-[10px] font-black gold-gradient uppercase mb-6 italic">Pipeline Jagd</h3>
+                        <h3 class="text-[10px] font-black gold-gradient uppercase mb-6 italic tracking-widest">Pipeline</h3>
                         <div id="leadsList" class="flex-grow overflow-y-auto custom-scroll pr-2"></div>
                     </div>
 
-                    <!-- ACTIVE LEAD BRIEFING -->
-                    <div id="lead-details" class="hidden glass-card p-8 border-gold/10 relative min-h-[650px]">
+                    <div id="lead-details" class="hidden glass-card p-8 border-gold/10 relative min-h-[650px] shadow-2xl">
                         <div id="lead-name-display" class="text-4xl font-black gold-gradient italic uppercase mb-10 tracking-tighter leading-none"></div>
                         
                         <div class="space-y-6 mb-10">
                             <label class="text-[9px] font-black uppercase text-white/20 ml-2">Missions-Ziel (E-Mail)</label>
-                            <input type="email" id="cust-mail" placeholder="Empfänger" class="!text-lg font-bold">
+                            <div class="input-wrapper !bg-white/5"><input type="email" id="cust-mail" class="!text-lg font-bold"></div>
                             <div class="grid grid-cols-2 gap-4">
-                                <button onclick="window.sendMission('vorstellung')" class="py-4 rounded-xl border border-gold/20 text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all italic">Vorstellung 🚀</button>
-                                <button onclick="window.sendMission('herzlich')" class="py-4 rounded-xl border border-gold/20 text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all italic">Bestätigung 👋</button>
+                                <button onclick="window.sendMission('vorstellung')" class="py-4 rounded-xl border border-gold/20 text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all">Vorstellung 🚀</button>
+                                <button onclick="window.sendMission('herzlich')" class="py-4 rounded-xl border border-gold/20 text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all">Bestätigung 👋</button>
                             </div>
                         </div>
 
                         <div class="pt-8 border-t border-white/5 space-y-6">
-                            <h3 class="text-[10px] font-black text-gold uppercase italic tracking-[0.2em]">Operational Status</h3>
-                            <select onchange="window.updateLeadData('status', this.value)" id="leadStatusSelect" class="font-bold uppercase tracking-widest !text-[10px]">
+                            <h3 class="text-[10px] font-black text-gold uppercase italic tracking-[0.2em]">Kommando-Status</h3>
+                            <select onchange="window.updateLeadData('status', this.value)" id="leadStatusSelect" class="!bg-white/5 !border !border-white/10 !rounded-xl !p-4 font-bold text-xs uppercase tracking-widest">
                                 <option value="Neu">Neu erfasst</option>
-                                <option value="Kontaktiert">Erstkontakt erfolgt</option>
+                                <option value="Kontaktiert">Erstkontakt</option>
                                 <option value="Termin">Vor-Ort Termin</option>
                                 <option value="Gewonnen">ABSCHLUSS 🏆</option>
                             </select>
                             <div class="space-y-2">
                                 <label class="text-[9px] font-black uppercase text-white/20 ml-2">Monatswert (€)</label>
-                                <input type="number" onchange="window.updateLeadData('monatsWert', this.value)" placeholder="0.00" class="font-bold text-xl !text-gold">
+                                <div class="input-wrapper !bg-white/5"><input type="number" id="lead-value-input" onchange="window.updateLeadData('monatsWert', this.value)" class="font-bold text-xl !text-gold"></div>
                             </div>
                         </div>
 
-                        <button onclick="window.deleteLead()" class="absolute bottom-8 left-8 text-[8px] text-red-500/30 uppercase font-black hover:text-red-500 transition-colors tracking-widest italic">⚠️ Lead endgültig löschen</button>
+                        <button onclick="window.deleteLead()" class="absolute bottom-8 left-8 text-[8px] text-red-500/30 uppercase font-black hover:text-red-500 transition-colors tracking-widest italic">⚠️ Lead löschen</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
 </body>
 </html>
