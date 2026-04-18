@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title id="page-title">Elite Service | Professionelle Reinigung</title>
+    <title id="page-title">Elite Service | Executive Radar v144</title>
     
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- KONFIGURATION ---
-        window.kj_ready = false;
-        window.kj_standalone = true; 
+        // --- KJANI CORE CONFIG ---
         const appId = 'kjani-elite-hannover';
         window.kj_appId = appId;
         const ELITE_PASS = "Kjani13675@"; 
@@ -21,156 +21,104 @@
             companyName: "Elite Service",
             ownerName: "Kjani Zharki",
             phone: "+49 152 15787871",
-            email: "info@elite-reinigung-hannover.de",
+            email: "kjaniscleaning@gmail.com",
+            websiteUrl: "https://elite-reinigung-hannover.de",
             location: "Hannover"
         };
 
         const jagdCategories = [
-            {n: 'Hausverwaltung', q: 'Hausverwaltung'}, {n: 'Arztpraxen', q: 'Arztpraxis'}, {n: 'Kanzleien', q: 'Kanzlei'}, {n: 'Kitas', q: 'Kita privat'},
-            {n: 'Fitness', q: 'Fitnessstudio'}, {n: 'Hotels', q: 'Hotel'}, {n: 'Autohäuser', q: 'Autohaus'}, {n: 'Gastro', q: 'Restaurant'},
-            {n: 'Seniorenheime', q: 'Seniorenresidenz'}, {n: 'Airbnb', q: 'Airbnb Reinigung'}, {n: 'Neubau', q: 'Baustellenreinigung'}, {n: 'Logistik', q: 'Logistikzentrum'},
-            {n: 'Apotheken', q: 'Apotheke'}, {n: 'Schulen', q: 'Privatschule'}, {n: 'Messebau', q: 'Messe Reinigung'}, {n: 'Büros', q: 'Büroreinigung'},
-            {n: 'Friseure', q: 'Friseursalon'}, {n: 'Sportvereine', q: 'Sportanlage'}, {n: 'Einkaufszentren', q: 'Shopping Center'}, {n: 'Tankstellen', q: 'Tankstelle'},
-            {n: 'Kinos', q: 'Kino'}, {n: 'Lagerhallen', q: 'Lagerreinigung'}, {n: 'Industrie', q: 'Industriehalle'}, {n: 'Modehäuser', q: 'Modegeschäft'},
-            {n: 'Bäckereien', q: 'Bäckerei'}, {n: 'Supermärkte', q: 'Supermarkt'}, {n: 'Parkhäuser', q: 'Parkhaus Reinigung'}, {n: 'Kliniken', q: 'Privatklinik'},
-            {n: 'Coworking', q: 'Coworking Space'}, {n: 'Event-Locations', q: 'Veranstaltungshalle'}, {n: 'Museen', q: 'Museum'}, {n: 'Bibliotheken', q: 'Bibliothek'},
-            {n: 'Labore', q: 'Laborreinigung'}, {n: 'Pflegedienste', q: 'Pflegedienst'}, {n: 'Villen', q: 'Luxusvilla Reinigung'}, {n: 'Banken', q: 'Bankfiliale'},
-            {n: 'Versicherungen', q: 'Versicherungsagentur'}, {n: 'Reisebüros', q: 'Reisebüro'}, {n: 'Spielhallen', q: 'Spielothek'}, {n: 'Solaranlagen', q: 'Photovoltaik Reinigung'}
+            {n: 'Ärzte', q: 'Arztpraxis', i: '🩺', hot: true}, 
+            {n: 'Kanzleien', q: 'Kanzlei', i: '⚖️', hot: true}, 
+            {n: 'Kitas', q: 'Kita privat', i: '🧸', hot: true},
+            {n: 'Airbnb', q: 'Airbnb Reinigung', i: '🔑', hot: true},
+            {n: 'Neubau', q: 'Baustellenreinigung', i: '🏗️', hot: true},
+            {n: 'Büros', q: 'Büroreinigung', i: '💻'},
+            {n: 'Gastro', q: 'Restaurant', i: '🍽️'},
+            {n: 'Fitness', q: 'Fitnessstudio', i: '💪'},
+            {n: 'Hotels', q: 'Hotel', i: '🏨'},
+            {n: 'Autohäuser', q: 'Autohaus', i: '🚗'}
         ];
 
-        // LIGHT SWITCH LOGIC
-        window.toggleTheme = () => {
-            const b = document.body;
-            if(b.classList.contains('light-mode')) {
-                b.classList.remove('light-mode');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                b.classList.add('light-mode');
-                localStorage.setItem('theme', 'light');
+        // --- DATA SCANNER LOGIK PRO v144 ⚡ ---
+        window.extractEliteData = () => {
+            const rawText = document.getElementById('scanner-in').value;
+            if(!rawText) return;
+
+            // Email-Erkennung
+            const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+            const emailField = document.getElementById('lead-email');
+            if(emailMatch) {
+                emailField.value = emailMatch[0];
+                emailField.style.borderColor = 'var(--gold)';
             }
+
+            // Telefon-Erkennung (DE-Format optimiert)
+            const phoneMatch = rawText.match(/(\+49|0)[0-9\s\-/()]{7,20}/);
+            const phoneField = document.getElementById('lead-phone');
+            if(phoneMatch) {
+                phoneField.value = phoneMatch[0].trim();
+                phoneField.style.borderColor = 'var(--gold)';
+            }
+
+            // Firmenname-Erkennung (Filtert typischen Google-Maps Müll)
+            const lines = rawText.split('\n')
+                .map(l => l.trim())
+                .filter(l => l.length > 3 
+                    && !l.includes('@') 
+                    && !l.includes('Rezensionen') 
+                    && !l.match(/^\d,\d/) // Filtert Sternebewertungen wie "4,5"
+                    && !l.includes('Geöffnet')
+                    && !l.includes('Geschlossen')
+                );
+
+            const nameField = document.getElementById('lead-name');
+            if(lines.length > 0) {
+                nameField.value = lines[0];
+                nameField.style.borderColor = 'var(--gold)';
+            }
+
+            confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ['#d4af37', '#ffffff'] });
+            document.getElementById('scanner-in').value = ""; 
+            
+            // Felder nach 2 Sekunden wieder normal färben
+            setTimeout(() => {
+                [nameField, emailField, phoneField].forEach(f => f.style.borderColor = 'rgba(255,255,255,0.05)');
+            }, 2000);
         };
 
-        window.updateUI = () => {
-            const s = window.eliteSettings;
-            document.querySelectorAll('.dyn-company-name').forEach(el => el.innerText = s.companyName);
-            document.querySelectorAll('.dyn-location').forEach(el => el.innerText = s.location);
-            const container = document.getElementById('jagd-buttons-container');
-            if(container) {
-                container.innerHTML = jagdCategories.map(c => `<button onclick="window.radarSearch('${c.q}')" class="jagd-btn">${c.n}</button>`).join('');
+        // --- CRM & MISSIONS ---
+        window.updateLeadData = async (f, v) => {
+            if(window.kj_db && window.currentLeadId && window.kj_uid) {
+                const leadRef = window.kj_fs.doc(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads', window.currentLeadId);
+                await window.kj_fs.updateDoc(leadRef, { [f]: v });
+                if(f === 'status' && v === 'Gewonnen') confetti({ particleCount: 150, spread: 70, colors: ['#d4af37', '#ffffff'] });
+                window.calculateRevenue();
             }
         };
-
-        window.radarSearch = (k) => window.open(`https://www.google.com/search?q=${encodeURIComponent(k + " in " + window.eliteSettings.location)}`, '_blank');
 
         window.calculateRevenue = () => {
             const leads = window.rawLeads || [];
             const monat = leads.filter(l => l.status === 'Gewonnen').reduce((sum, l) => sum + (parseFloat(l.monatsWert) || 0), 0);
-            const jahr = monat * 12;
-            const annualEl = document.getElementById('annual-revenue');
-            if(annualEl) {
-                const newVal = jahr.toLocaleString('de-DE') + " €";
-                if(annualEl.innerText !== newVal) {
-                    annualEl.classList.add('revenue-jump');
-                    setTimeout(() => annualEl.classList.remove('revenue-jump'), 1000);
-                    annualEl.innerText = newVal;
-                }
-            }
-            if(document.getElementById('won-revenue')) document.getElementById('won-revenue').innerText = monat.toLocaleString('de-DE') + " €";
-        };
-
-        window.generateOfferPDF = () => {
-            const s = window.eliteSettings;
-            const lead = window.rawLeads.find(l => l.id === window.currentLeadId);
-            if(!lead) return;
-            
-            const win = window.open('', '', 'width=900,height=1000');
-            const dateStr = new Date().toLocaleDateString('de-DE');
-            const netto = parseFloat(lead.monatsWert || 0);
-            const mwst = netto * 0.19;
-            const brutto = netto + mwst;
-
-            win.document.write(`
-                <html><head><title>Angebot_${lead.name}</title></head>
-                <body style="font-family:sans-serif;padding:60px;line-height:1.6;color:#333;">
-                    <div style="display:flex;justify-content:between;align-items:start;margin-bottom:60px;">
-                        <div style="flex-grow:1;"><h1 style="margin:0;color:#b8860b;">${s.companyName}</h1><p style="font-size:12px;">${s.ownerName} | ${s.location}</p></div>
-                        <div style="text-align:right;font-size:12px;">${s.email}<br>${s.phone}</div>
-                    </div>
-                    <p style="font-size:12px;margin-bottom:40px;">${s.companyName} • ${s.location}</p>
-                    <div style="margin-bottom:60px;"><strong>${lead.name}</strong><br>${lead.email}</div>
-                    <div style="display:flex;justify-content:between;margin-bottom:40px;">
-                        <div><h2 style="margin:0;">ANGEBOT</h2><p style="font-size:12px;">Projekt: Unterhaltsreinigung</p></div>
-                        <div style="text-align:right;">Datum: ${dateStr}</div>
-                    </div>
-                    <p>Sehr geehrte Damen und Herren,<br><br>vielen Dank für Ihr Interesse. Gerne unterbreiten wir Ihnen folgendes Angebot:</p>
-                    <table style="width:100%;border-collapse:collapse;margin:40px 0;">
-                        <tr style="border-bottom:2px solid #b8860b;"><th style="padding:10px;text-align:left;">Leistung</th><th style="padding:10px;text-align:right;">Betrag / Monat</th></tr>
-                        <tr><td style="padding:20px 10px;border-bottom:1px solid #eee;">Professionelle Unterhaltsreinigung laut Besprechung</td><td style="padding:20px 10px;text-align:right;">${netto.toLocaleString('de-DE')} €</td></tr>
-                        <tr><td style="padding:10px;text-align:right;">Netto Gesamt:</td><td style="padding:10px;text-align:right;">${netto.toLocaleString('de-DE')} €</td></tr>
-                        <tr><td style="padding:10px;text-align:right;">zzgl. 19% MwSt:</td><td style="padding:10px;text-align:right;">${mwst.toLocaleString('de-DE')} €</td></tr>
-                        <tr style="font-weight:bold;font-size:18px;"><td style="padding:10px;text-align:right;">Brutto Endbetrag:</td><td style="padding:10px;text-align:right;">${brutto.toLocaleString('de-DE')} €</td></tr>
-                    </table>
-                    <p style="font-size:12px;margin-top:40px;">Zahlungsbedingungen: 14 Tage nach Rechnungserhalt ohne Abzug. Angebot gültig für 30 Tage.</p>
-                    <div style="margin-top:60px;"><p>Mit freundlichen Grüßen,</p><br><p><strong>${s.ownerName}</strong><br>${s.companyName}</p></div>
-                </body></html>
-            `);
-            win.document.close();
-            win.print();
-        };
-
-        window.printRevenueReport = () => {
-            const s = window.eliteSettings;
-            const gewonnen = (window.rawLeads || []).filter(l => l.status === 'Gewonnen');
-            const win = window.open('', '', 'width=800,height=600');
-            if(!win) { alert("Bitte erlaube Popups für den Bericht!"); return; }
-            win.document.write(`<html><body style="font-family:sans-serif;padding:40px;"><h1>${s.companyName} Report</h1><hr><table style="width:100%;border-collapse:collapse;">${gewonnen.map(l => `<tr><td style="padding:10px;border-bottom:1px solid #ddd;">${l.name}</td><td style="padding:10px;border-bottom:1px solid #ddd;text-align:right;">${parseFloat(l.monatsWert).toLocaleString()} €</td></tr>`).join('')}</table><h2>Gesamt Jahr: ${document.getElementById('annual-revenue').innerText}</h2></body></html>`);
-            win.document.close();
-            win.print();
-        };
-
-        const initSystem = async () => {
-            if(localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
-            const overlay = document.getElementById('loading-overlay');
-            try {
-                let config = null;
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) config = JSON.parse(__firebase_config);
-                if (!config) { window.kj_standalone = true; overlay.style.display='none'; updateUI(); return; }
-                const app = initializeApp(config);
-                const auth = getAuth(app);
-                const db = getFirestore(app);
-                window.kj_db = db; window.kj_fs = { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, setDoc };
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        window.kj_ready = true; window.kj_uid = user.uid;
-                        const docSnap = await window.kj_fs.getDoc(window.kj_fs.doc(db, 'artifacts', window.kj_appId, 'users', user.uid, 'settings', 'profile'));
-                        if (docSnap.exists()) window.eliteSettings = { ...window.eliteSettings, ...docSnap.data() };
-                        updateUI();
-                        window.kj_fs.onSnapshot(window.kj_fs.collection(db, 'artifacts', window.kj_appId, 'users', user.uid, 'leads'), (snap) => {
-                            window.manualLeads = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                            window.renderLeadsUI();
-                        });
-                    } else { signInAnonymously(auth); }
-                });
-            } catch (e) { window.kj_standalone = true; }
-            setTimeout(() => overlay.style.display='none', 1000);
+            document.getElementById('annual-revenue').innerText = (monat * 12).toLocaleString('de-DE') + " €";
+            document.getElementById('won-revenue').innerText = monat.toLocaleString('de-DE') + " €";
         };
 
         window.renderLeadsUI = () => {
             const l = document.getElementById('leadsList'); if(!l) return;
-            window.rawLeads = window.manualLeads || [];
+            window.rawLeads = (window.manualLeads || []).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
             const now = Date.now();
-            l.innerHTML = window.rawLeads.map(x => {
+            l.innerHTML = window.rawLeads.map((x, index) => {
                 const last = x.lastContact || x.timestamp || now;
-                const diffDays = (now - last) / (1000 * 60 * 60 * 24);
-                const isOverdue = diffDays >= 3 && x.status !== 'Gewonnen';
-                
-                return `<div class="p-6 bg-slate-900/50 rounded-[2rem] border-2 border-gold/10 mb-4 cursor-pointer hover:border-gold transition-all flex items-center gap-4 lead-card" onclick="window.loadLead('${x.id}')">
-                    <div class="w-3 h-3 rounded-full ${x.status === 'Gewonnen' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gray-500'}"></div>
-                    <div class="flex-grow">
-                        <p class="font-bold text-sm uppercase text-white truncate lead-text">${x.name}</p>
-                        <p class="text-gold text-[8px] font-black uppercase">${parseFloat(x.monatsWert || 0).toLocaleString()} €</p>
+                const overdue = (now - last) / (1000*60*60*24) >= 3 && x.status !== 'Gewonnen';
+                return `
+                <div class="glass-card p-4 mb-3 cursor-pointer hover:border-gold transition-all flex items-center gap-4 sticky shadow-xl group" 
+                     style="top:${index * 8}px; z-index:${index};" onclick="window.loadLead('${x.id}')">
+                    <div class="w-2 h-2 rounded-full ${x.status === 'Gewonnen' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-white/10'}"></div>
+                    <div class="flex-grow overflow-hidden">
+                        <p class="font-bold text-xs uppercase tracking-wider text-white truncate">${x.name || 'Unbekannt'}</p>
+                        <p class="text-gold text-[9px] font-black">${parseFloat(x.monatsWert || 0).toLocaleString()} € / Mo</p>
                     </div>
-                    ${isOverdue ? '<div class="px-2 py-1 bg-orange-500 text-white text-[8px] font-bold rounded-lg animate-pulse">3d</div>' : ''}
+                    ${overdue ? '<div class="text-[7px] text-orange-500 font-black animate-pulse uppercase italic">Handeln</div>' : ''}
                 </div>`;
             }).join('');
             window.calculateRevenue();
@@ -178,230 +126,214 @@
 
         window.loadLead = (id) => {
             const x = window.rawLeads.find(y => y.id === id); if(!x) return;
-            document.getElementById('custName').value = x.name;
-            document.getElementById('custMail').value = x.email;
-            document.getElementById('custValue').value = x.monatsWert || "";
-            document.getElementById('leadStatusSelect').value = x.status || "Neu";
+            document.getElementById('cust-mail').value = x.email || "";
+            document.getElementById('lead-name-display').innerText = x.name;
             document.getElementById('lead-details').classList.remove('hidden');
-            document.getElementById('leadDescText').innerHTML = `<span class="gold-gradient text-xl uppercase">${x.name}</span>`;
-            window.currentLeadId = id; window.updateDraft();
+            window.currentLeadId = id;
         };
 
-        window.whatsappAction = async () => {
-            const name = document.getElementById('custName').value || "Interessent";
-            const msg = `Guten Tag ${name},\nhier ist ${window.eliteSettings.ownerName} von ${window.eliteSettings.companyName}. Ich melde mich bezüglich Ihrer Anfrage.`;
-            await window.updateLeadData('lastContact', Date.now());
-            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+        window.sendMission = async (stufe) => {
+            if(window.currentLeadId) await window.updateLeadData('lastContact', Date.now());
+            const email = document.getElementById('cust-mail').value;
+            const s = window.eliteSettings;
+            let subject = "Lösung: 80% Zeitersparnis bei Ihrer Gebäudereinigung";
+            let body = `Sehr geehrte Damen und Herren,\n\nwie viel Zeit verliert Ihr Team monatlich mit der Organisation der Reinigung?\n\nMit Elite Service reduzieren Sie diesen Aufwand um bis zu 80%.\n\nInfos unter: ${s.websiteUrl}\n\nBeste Grüße aus Hannover,\n${s.ownerName}`;
+            
+            if(stufe === 'herzlich') {
+                subject = "Termin-Bestätigung / Elite Service";
+                body = `Vielen Dank für das Gespräch.\n\nWie besprochen biete ich Ihnen absolute Zuverlässigkeit ohne Verwaltungsaufwand an.\n\nBeste Grüße,\n${s.ownerName}`;
+            }
+
+            window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         };
 
-        window.checkPass = () => { 
-            if(document.getElementById('passInput').value === ELITE_PASS) { 
-                document.getElementById('lock-screen').style.display='none'; 
-                document.getElementById('admin-panel').style.display='block'; 
-                window.renderLeadsUI();
-            } else { alert("PIN FALSCH."); }
+        window.addNewLead = async () => {
+            const n = document.getElementById('lead-name').value;
+            if(!n || !window.kj_uid) return;
+            await window.kj_fs.addDoc(window.kj_fs.collection(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads'), { 
+                name: n, 
+                email: document.getElementById('lead-email').value, 
+                phone: document.getElementById('lead-phone').value,
+                monatsWert: 0, status: 'Neu', timestamp: Date.now()
+            });
+            ['lead-name', 'lead-email', 'lead-phone'].forEach(id => document.getElementById(id).value = "");
         };
 
-        window.addNewManualLead = async () => {
-            const n = document.getElementById('newLeadName').value; const m = document.getElementById('newLeadEmail').value; const v = document.getElementById('newLeadValue').value;
-            if(!n || !m) return;
-            await window.kj_fs.addDoc(window.kj_fs.collection(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads'), { name: n, email: m, monatsWert: v, status: 'Neu', timestamp: Date.now(), lastContact: Date.now() });
-            document.getElementById('newLeadName').value = ""; document.getElementById('newLeadEmail').value = ""; document.getElementById('newLeadValue').value = "";
+        window.deleteLead = async () => {
+            if(confirm("Endgültig löschen?")) {
+                await window.kj_fs.deleteDoc(window.kj_fs.doc(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads', window.currentLeadId));
+                document.getElementById('lead-details').classList.add('hidden');
+            }
+        }
+
+        // --- SYSTEM CORE ---
+        window.startEliteClock = () => {
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('elite-clock').innerText = now.toLocaleTimeString('de-DE');
+            }, 1000);
         };
 
-        window.updateLeadData = async (f, v) => await window.kj_fs.updateDoc(window.kj_fs.doc(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads', window.currentLeadId), { [f]: v });
-        window.updateDraft = () => { document.getElementById('mailDraft').value = `Guten Tag ${document.getElementById('custName').value || "[Name]"},\nich kontaktiere Sie bezüglich einer Zusammenarbeit mit ${window.eliteSettings.companyName}.\nBeste Grüße,\n${window.eliteSettings.ownerName}`; };
-        
-        window.sendEliteMail = async () => {
-            await window.updateLeadData('lastContact', Date.now());
-            window.location.href = `mailto:${document.getElementById('custMail').value}?subject=Anfrage&body=${encodeURIComponent(document.getElementById('mailDraft').value)}`;
+        window.radarSearch = (k) => window.open(`https://www.google.com/search?q=${encodeURIComponent(k + " in " + window.eliteSettings.location)}`, '_blank');
+        window.checkPass = () => { if(document.getElementById('pass').value === ELITE_PASS) { document.getElementById('lock').style.display='none'; document.getElementById('hq').style.display='block'; window.renderLeadsUI(); } else { alert("CODE FALSCH"); } };
+
+        const initSystem = async () => {
+            window.startEliteClock();
+            try {
+                let config = null;
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) config = JSON.parse(__firebase_config);
+                if (!config) return;
+                const app = initializeApp(config);
+                const auth = getAuth(app);
+                const db = getFirestore(app);
+                window.kj_db = db; window.kj_fs = { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, setDoc };
+                
+                await signInAnonymously(auth);
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        window.kj_uid = user.uid;
+                        window.updateUI();
+                        window.kj_fs.onSnapshot(window.kj_fs.collection(db, 'artifacts', window.kj_appId, 'users', user.uid, 'leads'), (snap) => {
+                            window.manualLeads = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                            window.renderLeadsUI();
+                        });
+                    }
+                });
+            } catch (e) { console.error(e); }
+            setTimeout(() => { document.getElementById('loading-overlay').style.display='none'; }, 1000);
         };
 
-        window.deleteLead = async () => { if(confirm("Löschen?")) { await window.kj_fs.deleteDoc(window.kj_fs.doc(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads', window.currentLeadId)); document.getElementById('lead-details').classList.add('hidden'); } };
-        
-        window.saveSettings = async () => {
-            const s = { companyName: document.getElementById('set-company').value, ownerName: document.getElementById('set-owner').value, location: document.getElementById('set-location').value, phone: document.getElementById('set-phone').value, email: document.getElementById('set-email').value };
-            await window.kj_fs.setDoc(window.kj_fs.doc(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'settings', 'profile'), s);
-            window.eliteSettings = s; window.updateUI(); alert("Gespeichert!");
+        window.updateUI = () => {
+            const container = document.getElementById('jagd-buttons-container');
+            if(container) container.innerHTML = jagdCategories.map(c => `
+                <button onclick="window.radarSearch('${c.q}')" class="jagd-btn flex flex-col items-center gap-2 group ${c.hot ? 'border-gold/50 bg-gold/5' : ''}">
+                    <span class="text-xl group-hover:scale-125 transition-transform">${c.i}</span>
+                    <span class="text-[8px] tracking-tighter uppercase font-bold text-center">${c.n}</span>
+                    ${c.hot ? '<span class="text-[6px] text-gold animate-pulse font-black mt-1">DRINGEND</span>' : ''}
+                </button>`).join('');
         };
 
         window.addEventListener('DOMContentLoaded', initSystem);
-        window.showLockScreen = () => { document.getElementById('public-site').style.display='none'; document.getElementById('lock-screen').style.display='flex'; };
-        window.hideLockScreen = () => { document.getElementById('lock-screen').style.display='none'; document.getElementById('public-site').style.display='block'; };
-        window.backToSite = () => { document.getElementById('admin-panel').style.display='none'; document.getElementById('public-site').style.display='block'; };
-        window.switchAdminTab = (t) => { document.getElementById('tab-radar').classList.toggle('hidden', t !== 'radar'); document.getElementById('tab-settings').classList.toggle('hidden', t !== 'settings'); };
     </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #000; color: #fff; transition: background 0.3s, color 0.3s; }
-        
-        /* LIGHT MODE OVERRIDES */
-        body.light-mode { background-color: #f3f4f6; color: #111827; }
-        body.light-mode section { background-color: #f3f4f6 !important; }
-        body.light-mode #admin-panel { background-color: #f9fafb; }
-        body.light-mode .bg-slate-900, body.light-mode .bg-slate-900\/50 { background-color: #ffffff !important; border-color: rgba(0,0,0,0.1) !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        body.light-mode .lead-text { color: #1f2937 !important; }
-        body.light-mode input, body.light-mode textarea, body.light-mode select { background-color: #fff !important; color: #000 !important; border-color: #ccc !important; }
-        body.light-mode #annual-revenue { color: #111 !important; }
-        body.light-mode .service-card { background-color: #fff !important; border-color: rgba(0,0,0,0.05) !important; color: #111; }
-        body.light-mode .card-blur { background: rgba(0, 0, 0, 0.02); border-color: rgba(0,0,0,0.1); color: #111; }
-
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        :root { --gold: #d4af37; --obsidian: #0a0c10; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--obsidian); color: #fff; transition: 0.4s; overflow-x: hidden; }
+        .glass-card { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border: 1px solid rgba(212, 175, 55, 0.1); border-radius: 24px; }
         .gold-gradient { background: linear-gradient(135deg, #d4af37 0%, #f9e29b 50%, #b8860b 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .gold-bg { background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%); }
-        .card-blur { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(212, 175, 55, 0.1); }
-        #admin-panel, #lock-screen { display: none; }
-        .jagd-btn { @apply p-2 bg-slate-900 rounded-lg border border-gold/20 text-gold font-black uppercase text-[7px] hover:border-gold; }
-        .input-hq { @apply bg-black/40 border border-gold/20 rounded-full px-6 py-3 text-xs outline-none focus:border-gold text-white font-bold; }
-        @keyframes revenueJump { 0% { transform: scale(1); } 50% { transform: scale(1.1); color: #d4af37; } 100% { transform: scale(1); } }
-        .revenue-jump { animation: revenueJump 1s ease-out; }
-        .service-card { @apply p-10 border-4 border-white/5 rounded-[3rem] bg-black/50 hover:border-gold transition-all duration-500 text-center; }
-        .theme-toggle { position: fixed; bottom: 20px; right: 20px; z-index: 2000; padding: 15px; border-radius: 50%; background: #d4af37; color: black; font-weight: bold; cursor: pointer; box-shadow: 0 0 15px rgba(212,175,55,0.5); }
+        .gold-btn { background: linear-gradient(135deg, #d4af37, #b8860b); color: #000; font-weight: 800; border-radius: 16px; }
+        input, textarea, select { background: rgba(255,255,255,0.03) !important; border: 1px solid rgba(255,255,255,0.05) !important; border-radius: 12px !important; padding: 10px !important; color: #fff !important; outline: none; width: 100%; font-size: 12px; transition: border 0.3s; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 10px; }
     </style>
 </head>
-<body class="overflow-x-hidden">
+<body class="p-4 md:p-10">
 
-    <button class="theme-toggle" onclick="window.toggleTheme()">💡</button>
-
-    <div id="loading-overlay" class="fixed inset-0 z-[3000] bg-black flex items-center justify-center">
-        <div class="text-center"><div class="w-16 h-16 border-4 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p class="text-gold font-bold uppercase tracking-widest text-[10px]">Elite System v126.0</p></div>
-    </div>
-
-    <div id="public-site">
-        <nav class="fixed top-0 left-0 w-full h-24 z-[100] bg-black/90 backdrop-blur-md border-b-2 border-gold/30">
-            <div class="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
-                <div class="flex items-center space-x-4 cursor-pointer" onclick="window.showLockScreen()">
-                    <div class="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center border-2 border-gold text-white">🦅</div>
-                    <span class="dyn-company-name text-xl font-black uppercase gold-gradient">Elite System</span>
-                </div>
-                <button onclick="document.getElementById('preise').scrollIntoView({behavior:'smooth'})" class="px-8 py-3 bg-gold text-black font-black rounded-full text-[10px] uppercase shadow-lg shadow-gold/20">JETZT STARTEN</button>
-            </div>
-        </nav>
-
-        <section class="min-h-screen flex items-center justify-center px-6 text-center pt-24 bg-black relative overflow-hidden">
-            <div class="absolute inset-0 opacity-30"><img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=2400" class="w-full h-full object-cover"></div>
-            <div class="max-w-4xl mx-auto relative z-10">
-                <h1 class="text-5xl md:text-8xl font-black leading-[0.9] mb-8 italic uppercase tracking-tighter">VOM PUTZEIMER ZUM <br> <span class="gold-gradient">PROFIT-CENTER</span></h1>
-                <p class="text-xl text-white/60 mb-12 italic">Das Radar-System für Ihr Imperium in <span class="dyn-location">Hannover</span>.</p>
-                <button onclick="document.getElementById('leistungen').scrollIntoView({behavior:'smooth'})" class="gold-bg text-black px-12 py-6 rounded-full font-black text-lg uppercase shadow-2xl hover:scale-105 transition-all">DETAILS</button>
-            </div>
-        </section>
-
-        <section id="leistungen" class="py-32 px-6 bg-[#050505]">
-            <div class="max-w-7xl mx-auto grid md:grid-cols-3 gap-12">
-                <div class="service-card"><div class="text-6xl mb-8">🏠</div><h3 class="text-2xl font-black mb-4 uppercase gold-gradient">Privat</h3><p class="italic font-bold opacity-60">Exklusive Wohnobjekte.</p></div>
-                <div class="service-card"><div class="text-6xl mb-8">🏢</div><h3 class="text-2xl font-black mb-4 uppercase gold-gradient">Büro</h3><p class="italic font-bold opacity-60">Firmen und Kanzleien.</p></div>
-                <div class="service-card"><div class="text-6xl mb-8">🏗️</div><h3 class="text-2xl font-black mb-4 uppercase gold-gradient">Bau</h3><p class="italic font-bold opacity-60">Neubauprojekte.</p></div>
-            </div>
-        </section>
-
-        <section id="preise" class="py-32 px-6 bg-black">
-            <div class="grid md:grid-cols-3 gap-10 max-w-6xl mx-auto">
-                <div class="card-blur p-12 rounded-[4rem] flex flex-col items-center">
-                    <span class="text-[10px] uppercase opacity-40 mb-6">Standard</span>
-                    <div class="text-7xl font-black mb-10 italic">49€</div>
-                    <a href="mailto:info@elite-reinigung-hannover.de" class="block w-full py-5 rounded-full border border-gold font-black text-[10px] text-center uppercase">Anfragen</a>
-                </div>
-                <div class="card-blur p-12 rounded-[4rem] flex flex-col items-center border-gold scale-110 shadow-2xl bg-white/[0.04]">
-                    <span class="text-[10px] uppercase text-gold mb-6 italic font-bold">Premium</span>
-                    <div class="text-7xl font-black mb-10 gold-gradient italic">99€</div>
-                    <a href="mailto:info@elite-reinigung-hannover.de" class="block w-full py-5 rounded-full gold-bg text-black font-black text-[10px] text-center uppercase">Jetzt Jagen</a>
-                </div>
-                <div class="card-blur p-12 rounded-[4rem] flex flex-col items-center">
-                    <span class="text-[10px] uppercase opacity-40 mb-6">Elite</span>
-                    <div class="text-7xl font-black mb-10 italic">199€</div>
-                    <a href="mailto:info@elite-reinigung-hannover.de" class="block w-full py-5 rounded-full border border-gold font-black text-[10px] text-center uppercase">Bauen</a>
-                </div>
-            </div>
-        </section>
-
-        <footer class="py-20 text-center px-6 border-t border-white/5 opacity-40 text-[10px] uppercase font-black">&copy; 2026 Elite System | Kjani Zharki</footer>
+    <div id="loading-overlay" class="fixed inset-0 z-[6000] bg-[#0a0c10] flex items-center justify-center">
+        <div class="text-center"><div class="w-12 h-12 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p class="gold-gradient font-black text-[10px] tracking-widest uppercase">Executive Pro v144</p></div>
     </div>
 
     <!-- LOCK SCREEN -->
-    <div id="lock-screen" class="fixed inset-0 z-[1500] bg-black flex items-center justify-center p-6 text-center">
-        <div class="max-w-md w-full bg-slate-900/50 p-16 rounded-[4rem] border-2 border-gold/20 backdrop-blur-3xl shadow-2xl">
-            <div class="w-32 h-32 bg-slate-900 rounded-[2.5rem] border-4 border-gold mx-auto mb-10 flex items-center justify-center text-5xl">🦅</div>
-            <h1 class="text-gold text-4xl font-black mb-12 uppercase italic">HQ LOGIN</h1>
-            <input type="password" id="passInput" placeholder="PIN" class="w-full text-center text-3xl p-8 bg-white/5 border-2 border-gold rounded-full outline-none font-bold text-gold mb-12">
-            <button onclick="window.checkPass()" class="w-full bg-gold text-black py-8 rounded-full font-black text-2xl uppercase shadow-2xl">ZUGRIFF</button>
-            <button onclick="window.hideLockScreen()" class="w-full py-4 text-white/20 text-[10px] uppercase underline mt-4">ZURÜCK</button>
+    <div id="lock" class="fixed inset-0 z-[5000] bg-black flex items-center justify-center p-6 text-center">
+        <div class="glass-card p-12 w-full max-w-sm border-gold/20 shadow-2xl">
+            <h2 class="text-xl font-black gold-gradient mb-8 uppercase italic">Commander Login</h2>
+            <input type="password" id="pass" placeholder="CODE" class="text-center text-3xl mb-8 tracking-[0.5em]">
+            <button onclick="window.checkPass()" class="gold-btn w-full py-5 shadow-2xl">ZUGRIFF</button>
         </div>
     </div>
 
-    <!-- ADMIN HQ -->
-    <div id="admin-panel" class="p-4 md:p-8 min-h-screen">
-        <header class="flex flex-col xl:flex-row justify-between items-center mb-8 gap-8 bg-slate-900 p-8 rounded-[3.5rem] border-t-[8px] border-gold shadow-2xl">
-            <div class="flex items-center space-x-6">
-                <div class="w-16 h-16 bg-slate-900 rounded-2xl border-2 border-gold flex items-center justify-center text-3xl">🦅</div>
-                <div><h1 class="text-2xl font-black uppercase italic">KJANI <span class="text-gold">RADAR</span></h1><p class="text-[8px] opacity-40 uppercase tracking-widest font-black">Elite System v126.0</p></div>
+    <div id="hq" style="display:none;" class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-12">
+            <div class="flex items-center gap-6">
+                <div class="w-16 h-16 glass-card flex items-center justify-center text-3xl shadow-2xl border-gold/30">🦅</div>
+                <div><h1 class="text-3xl font-black gold-gradient italic uppercase leading-none">Elite HQ</h1><p class="text-[8px] uppercase text-white/30 tracking-widest font-bold tracking-tighter">Diamond Executive v144</p></div>
             </div>
-            <div class="flex gap-4">
-                <button onclick="window.switchAdminTab('radar')" class="px-6 py-2 bg-gold/10 text-gold border border-gold rounded-full text-[10px] font-black uppercase">RADAR</button>
-                <button onclick="window.switchAdminTab('settings')" class="px-6 py-2 bg-white/5 text-white/40 border border-white/10 rounded-full text-[10px] font-black uppercase">SETUP</button>
-                <button onclick="window.backToSite()" class="px-6 py-2 bg-white/10 text-white rounded-full text-[10px] font-black uppercase underline">WEBSITE</button>
+            <div class="glass-card px-8 py-3 text-center border-gold/10">
+                <p id="elite-clock" class="text-2xl font-black gold-gradient tracking-widest">00:00:00</p>
             </div>
+            <button onclick="location.reload()" class="glass-card px-6 py-3 text-[10px] font-black uppercase italic hover:text-gold transition-colors">Reload</button>
         </header>
 
-        <div id="tab-radar">
-            <div class="mb-8 grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2" id="jagd-buttons-container"></div>
-            
-            <div class="mb-8 flex flex-wrap gap-4 items-stretch">
-                <div class="bg-slate-900 border-2 border-gold p-6 rounded-[2rem] flex-grow text-center shadow-xl">
-                    <p class="text-[10px] font-black text-gold/60 uppercase italic tracking-widest">★ Prognostizierter Jahresumsatz ★</p>
-                    <p id="annual-revenue" class="text-5xl font-black mt-2">0 €</p>
+        <div class="grid lg:grid-cols-12 gap-8">
+            <!-- LEFT: SCANNER & INPUT -->
+            <div class="lg:col-span-4 space-y-6">
+                <div class="glass-card p-6 border-gold/30">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-[10px] font-black gold-gradient uppercase italic tracking-widest">Elite Data-Scanner ⚡</h3>
+                        <span class="text-[8px] text-white/20 uppercase font-bold">Pro-Mode Active</span>
+                    </div>
+                    <textarea id="scanner-in" class="h-24 mb-4" placeholder="Kopierten Google-Text hier einwerfen..."></textarea>
+                    <button onclick="window.extractEliteData()" class="gold-btn w-full py-3 text-[10px] uppercase shadow-lg">Daten Saugen</button>
                 </div>
-                <div class="bg-green-500/10 border-2 border-green-500/30 p-6 rounded-[2rem] flex-grow text-center"><p class="text-[10px] font-black opacity-50 uppercase">Monat🏆</p><p id="won-revenue" class="text-4xl font-black text-green-500 mt-2">0 €</p></div>
-                <button onclick="window.printRevenueReport()" class="bg-gold text-black p-6 rounded-[2rem] text-center shadow-xl font-black uppercase text-xs">Umsatz Report 🖨️</button>
+
+                <div class="glass-card p-6">
+                    <h3 class="text-[10px] font-black text-white/40 uppercase mb-4 italic">Lead-Check</h3>
+                    <div class="space-y-3">
+                        <input type="text" id="lead-name" placeholder="Firma / Name">
+                        <input type="email" id="lead-email" placeholder="Email (Zentral)">
+                        <input type="text" id="lead-phone" placeholder="Telefon (Direkt)">
+                        <button onclick="window.addNewLead()" class="w-full py-3 border border-gold/20 rounded-xl text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all">+ In Pipeline sichern</button>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 h-[320px] flex flex-col">
+                    <h3 class="text-[10px] font-black gold-gradient uppercase mb-4 italic">Gurgel Radar</h3>
+                    <div class="grid grid-cols-4 gap-2 overflow-y-auto pr-2 custom-scroll" id="jagd-buttons-container"></div>
+                </div>
             </div>
 
-            <div class="grid lg:grid-cols-12 gap-8">
-                <div class="lg:col-span-4 space-y-6">
-                    <div class="bg-slate-900 p-8 rounded-[3rem] border-2 border-gold/10 space-y-4 shadow-xl">
-                        <input type="text" id="newLeadName" placeholder="Firma" class="input-hq w-full">
-                        <input type="email" id="newLeadEmail" placeholder="E-Mail" class="input-hq w-full">
-                        <input type="number" id="newLeadValue" placeholder="€ / Mon" class="input-hq w-full">
-                        <button onclick="window.addNewManualLead()" class="w-full bg-gold text-black py-4 rounded-full text-[10px] font-black uppercase shadow-xl">LEAD +</button>
+            <!-- RIGHT: DASHBOARD & PIPELINE -->
+            <div class="lg:col-span-8 space-y-6">
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="glass-card p-8 border-gold/20 text-center">
+                        <p class="text-[8px] font-black text-white/20 uppercase mb-2 italic">Jahres-Projektion</p>
+                        <div id="annual-revenue" class="text-5xl font-black italic gold-gradient tracking-tighter">0 €</div>
                     </div>
-                    <div class="bg-slate-900 p-8 rounded-[3rem] h-[500px] flex flex-col border-2 border-gold/5 shadow-2xl overflow-y-auto custom-scroll" id="leadsList"></div>
+                    <div class="glass-card p-8 border-white/5 text-center">
+                        <p class="text-[8px] font-black text-white/20 uppercase mb-2 italic">Aktueller Monats-Flow</p>
+                        <div id="won-revenue" class="text-5xl font-black italic text-white tracking-tighter">0 €</div>
+                    </div>
                 </div>
-                <div class="lg:col-span-8">
-                    <div class="bg-slate-900 p-10 h-[850px] flex flex-col rounded-[3.5rem] border-t-[15px] border-gold shadow-2xl overflow-y-auto custom-scroll">
-                        <div id="lead-details" class="mb-10 hidden border-b border-gold/10 pb-10">
-                            <div class="flex flex-wrap justify-between items-center gap-6 mb-10">
-                                <div class="flex gap-4">
-                                    <select id="leadStatusSelect" onchange="window.updateLeadData('status', this.value); window.renderLeadsUI();" class="bg-black border border-gold text-white rounded-full px-5 py-3 text-[10px] font-black outline-none"><option value="Neu">NEU</option><option value="Kontaktiert">KONTAKTIERT</option><option value="Termin">TERMIN</option><option value="Gewonnen">GEWONNEN</option></select>
-                                    <input type="number" id="custValue" onchange="window.updateLeadData('monatsWert', this.value); window.renderLeadsUI();" class="bg-black border border-gold text-white rounded-full px-5 py-3 text-[10px] font-black w-32 outline-none">
-                                </div>
-                                <div class="flex flex-wrap gap-2">
-                                    <button onclick="window.generateOfferPDF()" class="bg-blue-600 text-white px-6 py-3 rounded-full font-black text-[10px] uppercase shadow-lg">Angebot 📄</button>
-                                    <button onclick="window.whatsappAction()" class="bg-green-500 text-white px-6 py-3 rounded-full font-black text-[10px] uppercase shadow-xl">WhatsApp</button>
-                                    <button onclick="window.deleteLead()" class="bg-red-600/20 text-red-500 border border-red-500 px-4 py-3 rounded-full font-black text-[10px] uppercase">🗑️</button>
-                                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- PIPELINE LIST -->
+                    <div class="glass-card p-6 h-[650px] flex flex-col">
+                        <h3 class="text-[10px] font-black gold-gradient uppercase mb-6 italic">Pipeline Jagd</h3>
+                        <div id="leadsList" class="flex-grow overflow-y-auto custom-scroll pr-2"></div>
+                    </div>
+
+                    <!-- ACTIVE LEAD BRIEFING -->
+                    <div id="lead-details" class="hidden glass-card p-8 border-gold/10 relative min-h-[650px]">
+                        <div id="lead-name-display" class="text-4xl font-black gold-gradient italic uppercase mb-10 tracking-tighter leading-none"></div>
+                        
+                        <div class="space-y-6 mb-10">
+                            <label class="text-[9px] font-black uppercase text-white/20 ml-2">Missions-Ziel (E-Mail)</label>
+                            <input type="email" id="cust-mail" placeholder="Empfänger" class="!text-lg font-bold">
+                            <div class="grid grid-cols-2 gap-4">
+                                <button onclick="window.sendMission('vorstellung')" class="py-4 rounded-xl border border-gold/20 text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all italic">Vorstellung 🚀</button>
+                                <button onclick="window.sendMission('herzlich')" class="py-4 rounded-xl border border-gold/20 text-[10px] font-bold uppercase hover:bg-gold hover:text-black transition-all italic">Bestätigung 👋</button>
                             </div>
-                            <div class="bg-black/40 p-10 rounded-[2.5rem] border-2 border-gold/20 text-center font-bold italic" id="leadDescText"></div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4 mb-6"><input type="text" id="custName" oninput="window.updateDraft()" placeholder="Kunde" class="input-hq"><input type="email" id="custMail" oninput="window.updateDraft()" placeholder="E-Mail" class="input-hq"></div>
-                        <textarea id="mailDraft" class="flex-grow w-full p-10 bg-black/40 rounded-[2.5rem] text-sm font-bold outline-none border-2 border-gold/10 leading-loose text-white focus:border-gold custom-scroll"></textarea>
-                        <button onclick="window.sendEliteMail()" class="mt-8 bg-gold text-black py-10 rounded-full font-black uppercase text-xl shadow-2xl italic tracking-widest">BRIEF ABSENDEN 🚀</button>
+
+                        <div class="pt-8 border-t border-white/5 space-y-6">
+                            <h3 class="text-[10px] font-black text-gold uppercase italic tracking-[0.2em]">Operational Status</h3>
+                            <select onchange="window.updateLeadData('status', this.value)" id="leadStatusSelect" class="font-bold uppercase tracking-widest !text-[10px]">
+                                <option value="Neu">Neu erfasst</option>
+                                <option value="Kontaktiert">Erstkontakt erfolgt</option>
+                                <option value="Termin">Vor-Ort Termin</option>
+                                <option value="Gewonnen">ABSCHLUSS 🏆</option>
+                            </select>
+                            <div class="space-y-2">
+                                <label class="text-[9px] font-black uppercase text-white/20 ml-2">Monatswert (€)</label>
+                                <input type="number" onchange="window.updateLeadData('monatsWert', this.value)" placeholder="0.00" class="font-bold text-xl !text-gold">
+                            </div>
+                        </div>
+
+                        <button onclick="window.deleteLead()" class="absolute bottom-8 left-8 text-[8px] text-red-500/30 uppercase font-black hover:text-red-500 transition-colors tracking-widest italic">⚠️ Lead endgültig löschen</button>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- SETTINGS -->
-        <div id="tab-settings" class="hidden">
-            <div class="max-w-4xl mx-auto bg-slate-900 p-16 rounded-[4rem] border-2 border-gold/20 shadow-2xl text-center">
-                <h2 class="text-4xl font-black uppercase text-gold mb-12 italic border-b border-gold/10 pb-6">Profil-Setup</h2>
-                <div class="grid md:grid-cols-2 gap-8 mb-10 text-left">
-                    <input type="text" id="set-company" class="input-hq w-full" placeholder="FIRMA">
-                    <input type="text" id="set-owner" class="input-hq w-full" placeholder="INHABER">
-                    <input type="text" id="set-location" class="input-hq w-full" placeholder="STADT">
-                    <input type="text" id="set-phone" class="input-hq w-full" placeholder="MOBIL">
-                    <input type="text" id="set-email" class="input-hq w-full md:col-span-2" placeholder="E-MAIL">
-                </div>
-                <button onclick="window.saveSettings()" class="w-full bg-gold text-black py-10 rounded-full font-black uppercase shadow-2xl italic">PROFIL SPEICHERN 🦅</button>
             </div>
         </div>
     </div>
