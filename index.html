@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title id="page-title">Elite HQ v148.2 | Diamond Edition</title>
+    <title id="page-title">Elite HQ v151 | Diamond Local-First</title>
     
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
@@ -39,12 +39,11 @@
             {n: 'Autohäuser', q: 'Autohaus', i: '🚗'}
         ];
 
-        // --- DATA SCANNER LOGIK PRO v148.2 (Kjanis "Sauger") ⚡ ---
+        // --- DATA SCANNER LOGIK PRO v151 (Kjanis "Sauger") ⚡ ---
         window.extractEliteData = () => {
             const rawText = document.getElementById('scanner-in').value;
             if(!rawText) return;
 
-            // 1. Email finden
             const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
             if(emailMatch) {
                 const field = document.getElementById('lead-email');
@@ -52,7 +51,6 @@
                 field.classList.add('light-on');
             }
 
-            // 2. Telefon finden
             const phoneMatch = rawText.match(/(\+49|0)[0-9\s\-/()]{7,20}/);
             if(phoneMatch) {
                 const field = document.getElementById('lead-phone');
@@ -60,10 +58,8 @@
                 field.classList.add('light-on');
             }
 
-            // 3. Firmenname finden (Er nimmt die erste Zeile, die keine E-Mail ist)
             const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 2);
             if(lines.length > 0) {
-                // Falls die erste Zeile die E-Mail war, nimm die zweite (falls vorhanden)
                 const name = (lines[0].includes('@') && lines.length > 1) ? lines[1] : lines[0];
                 const field = document.getElementById('lead-name');
                 field.value = name;
@@ -71,17 +67,60 @@
             }
 
             confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ['#d4af37', '#ffffff'] });
-            
-            // Textfeld leeren
             document.getElementById('scanner-in').value = ""; 
-            
-            // Licht-Effekt nach 2 Sek entfernen
             setTimeout(() => { 
                 document.querySelectorAll('.light-on').forEach(el => el.classList.remove('light-on')); 
             }, 2000);
         };
 
-        // --- CRM CORE ---
+        // --- LOCAL-FIRST ADD LOGIK v151 🚀 ---
+        window.addNewLead = async () => {
+            const n = document.getElementById('lead-name').value;
+            const e = document.getElementById('lead-email').value;
+            const p = document.getElementById('lead-phone').value;
+            
+            if(!n || !window.kj_uid) return;
+
+            // 1. SOFORT IN DIE LISTE SCHREIBEN (Optimistic UI)
+            const leadList = document.getElementById('leadsList');
+            const entryId = "temp-" + Date.now();
+            const entry = document.createElement('div');
+            entry.id = "optimistic-entry"; // ID zum späteren Entfernen
+            entry.className = "glass p-4 mb-3 border-l-4 border-gold shadow-2xl animate-pulse";
+            entry.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-xs uppercase text-white">${n}</p>
+                        <p class="text-gold text-[9px] italic">Lead gesichert (Lokal) 💎</p>
+                    </div>
+                    <span class="text-xl">🚀</span>
+                </div>`;
+            leadList.prepend(entry);
+
+            // 2. IN DER CLOUD SPEICHERN
+            try {
+                if(window.kj_db && window.kj_uid) {
+                    await addDoc(collection(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads'), { 
+                        name: n, 
+                        email: e, 
+                        phone: p, 
+                        monatsWert: 0, 
+                        status: 'Neu', 
+                        timestamp: Date.now(),
+                        lastContact: Date.now()
+                    });
+                }
+            } catch (err) {
+                console.error("Cloud-Fehler, aber Lead ist lokal da:", err);
+                entry.innerHTML = `<p class="text-red-500 text-[9px] font-black uppercase">Cloud Error - Nur Lokal!</p>`;
+            }
+
+            // 3. FELDER LEEREN & KONFETTI
+            ['lead-name', 'lead-email', 'lead-phone'].forEach(id => document.getElementById(id).value = "");
+            confetti({ particleCount: 100, colors: ['#d4af37'] });
+        };
+
+        // --- CRM CORE FUNCTIONS ---
         window.updateLeadData = async (f, v) => {
             if(window.kj_db && window.currentLeadId && window.kj_uid) {
                 try {
@@ -102,6 +141,11 @@
 
         window.renderLeadsUI = () => {
             const l = document.getElementById('leadsList'); if(!l) return;
+            
+            // Entferne den lokalen "Geister-Lead", bevor die echten Cloud-Daten gerendert werden
+            const optEntry = document.getElementById('optimistic-entry');
+            if(optEntry) optEntry.remove();
+
             window.rawLeads = (window.manualLeads || []).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
             const now = Date.now();
             l.innerHTML = window.rawLeads.map((x, index) => {
@@ -141,18 +185,6 @@
                 body = `Vielen Dank für das Gespräch.\n\nWie besprochen biete ich Ihnen absolute Zuverlässigkeit ohne Verwaltungsaufwand an.\n\nBeste Grüße,\n${s.ownerName}`;
             }
             window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        };
-
-        window.addNewLead = async () => {
-            const n = document.getElementById('lead-name').value;
-            if(!n || !window.kj_uid) return;
-            try {
-                await addDoc(collection(window.kj_db, 'artifacts', window.kj_appId, 'users', window.kj_uid, 'leads'), { 
-                    name: n, email: document.getElementById('lead-email').value, phone: document.getElementById('lead-phone').value,
-                    monatsWert: 0, status: 'Neu', timestamp: Date.now()
-                });
-                ['lead-name', 'lead-email', 'lead-phone'].forEach(id => document.getElementById(id).value = "");
-            } catch (e) { console.error(e); }
         };
 
         window.deleteLead = async () => {
@@ -204,10 +236,10 @@
         :root { --gold: #d4af37; --obsidian: #0a0c10; }
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--obsidian); color: #fff; overflow-x: hidden; }
 
-        /* DIAMOND INPUT SYSTEM - v148.2 Optimierung */
+        /* DIAMOND INPUT SYSTEM - v151 Local-First Edition */
         input, textarea, select {
-            background-color: #15171c !important;
-            color: #d4af37 !important; /* Goldene Schrift für beste Lesbarkeit */
+            background-color: #111318 !important; /* Extra Deep Dark */
+            color: #d4af37 !important; 
             border: 2px solid rgba(212, 175, 55, 0.2) !important;
             border-radius: 12px !important;
             padding: 15px !important;
@@ -238,13 +270,13 @@
 <body class="p-4 md:p-10">
 
     <div id="loading-overlay" class="fixed inset-0 z-[6000] bg-[#0a0c10] flex items-center justify-center">
-        <div class="text-center"><div class="w-12 h-12 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p class="gold-gradient font-black text-[10px] tracking-widest uppercase italic tracking-tighter">Diamond Pro v148.2 | Elite Executive</p></div>
+        <div class="text-center"><div class="w-12 h-12 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p class="gold-gradient font-black text-[10px] tracking-widest uppercase italic tracking-tighter">Diamond v151 | Local-First Engine</p></div>
     </div>
 
     <!-- LOCK SCREEN -->
     <div id="lock" class="fixed inset-0 z-[5000] bg-black flex items-center justify-center p-6 text-center">
         <div class="glass p-12 w-full max-w-sm border-gold/20 shadow-2xl">
-            <h2 class="text-xl font-black gold-gradient mb-8 uppercase italic">Commander Login</h2>
+            <h2 class="text-xl font-black gold-gradient mb-8 uppercase italic tracking-tighter leading-none">Diamond Login</h2>
             <input type="password" id="pass" placeholder="CODE" class="text-center text-3xl mb-8 tracking-[0.5em] !bg-white/5 !border-white/10">
             <button onclick="window.checkPass()" class="gold-bg w-full shadow-2xl uppercase tracking-widest">ZUGRIFF</button>
         </div>
@@ -257,7 +289,7 @@
                 <div class="w-16 h-16 glass flex items-center justify-center text-3xl shadow-2xl border-gold/30">🦅</div>
                 <div>
                     <h1 class="text-3xl font-black gold-gradient italic uppercase leading-none">Elite HQ</h1>
-                    <p class="text-[8px] uppercase text-white/30 tracking-widest font-bold">Diamond Edition v148.2</p>
+                    <p class="text-[8px] uppercase text-white/30 tracking-widest font-bold">Local-First Architecture v151</p>
                 </div>
             </div>
             <div class="glass px-8 py-3 text-center border-gold/10">
@@ -295,11 +327,11 @@
             <div class="lg:col-span-8 space-y-6">
                 <div class="grid grid-cols-2 gap-6">
                     <div class="glass p-10 border-gold/20 text-center">
-                        <p class="text-[8px] font-black text-white/20 uppercase mb-2 italic tracking-widest">Umsatz Prognose / Jahr</p>
+                        <p class="text-[8px] font-black text-white/20 uppercase mb-2 italic tracking-widest">Jahres-Prognose</p>
                         <div id="annual-revenue" class="text-6xl font-black italic gold-gradient tracking-tighter">0 €</div>
                     </div>
                     <div class="glass p-10 border-white/5 text-center">
-                        <p class="text-[8px] font-black text-white/20 uppercase mb-2 italic tracking-widest">Monatswert Gewonnen</p>
+                        <p class="text-[8px] font-black text-white/20 uppercase mb-2 italic tracking-widest">Monatswert</p>
                         <div id="won-revenue" class="text-6xl font-black italic text-white tracking-tighter">0 €</div>
                     </div>
                 </div>
